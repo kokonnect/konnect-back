@@ -23,7 +23,7 @@ public class User extends BaseEntity {
     private String socialId;
 
     @Enumerated(EnumType.STRING)
-    private Provider provider; // ENUM: GOOGLE, KAKAO, NAVER
+    private Provider provider;
 
     private String nickname;
 
