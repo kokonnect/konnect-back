@@ -5,8 +5,9 @@ import com.example.konnect_backend.domain.auth.dto.request.SignUpRequest;
 import com.example.konnect_backend.domain.auth.dto.response.AuthResponse;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
-import com.example.konnect_backend.global.common.exception.CustomException;
-import com.example.konnect_backend.global.common.exception.ErrorCode;
+import com.example.konnect_backend.global.code.status.ErrorStatus;
+
+import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ public class AuthService {
     public AuthResponse signUp(SignUpRequest request) {
         // 이미 존재하는 사용자인지 확인
         if (userRepository.existsBySocialId(request.getSocialId())) {
-            throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+            throw new GeneralException(ErrorStatus.USER_ALREADY_EXISTS);
         }
 
         // 새 사용자 생성
@@ -57,7 +58,7 @@ public class AuthService {
     public AuthResponse signIn(SignInRequest request) {
         // 사용자 조회
         User user = userRepository.findBySocialId(request.getSocialId())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         // JWT 토큰 생성
         String accessToken = jwtTokenProvider.createToken(user.getSocialId());
