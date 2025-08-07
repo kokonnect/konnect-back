@@ -30,5 +30,4 @@ public class DocumentTranslation extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String summary;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
 }

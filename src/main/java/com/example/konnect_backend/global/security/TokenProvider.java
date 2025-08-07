@@ -20,7 +20,7 @@ import java.util.Date;
 @Component
 public class TokenProvider {
 
-    private static final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512); // 토큰용 비밀키
+    private static final SecretKey SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256); // 토큰용 비밀키
 
     public String generateAccessToken(User user) {
         return Jwts.builder()
