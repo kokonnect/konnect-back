@@ -1,12 +1,14 @@
 package com.example.konnect_backend.global.config;
 
-import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.security.JwtAuthenticationFilter;
+import com.example.konnect_backend.global.security.JwtTokenProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -26,17 +28,11 @@ import java.util.Map;
 @Configuration
 @EnableMethodSecurity
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class WebSecurityConfig {
 
     private final ObjectMapper objectMapper;
-
-    @Autowired
-    public WebSecurityConfig(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -53,14 +49,15 @@ public class WebSecurityConfig {
                         .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico").permitAll()
                         .requestMatchers("/swagger", "/swagger/", "/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
                         //.requestMatchers("/api/user/**", "/api/booths/**", "/api/**").permitAll()   // /api 이하 경로 접근 허용\
-                        .requestMatchers("/api/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/login", "/oauth2/**").permitAll()
                         .requestMatchers("/api/ws", "/api/ws/**", "/api/ws/info/**").permitAll()
                         .requestMatchers("/ws", "/ws/**", "/ws/info/**").permitAll()  // WebSocket 엔드포인트 허용
                         .requestMatchers("/favicon.ico").permitAll()
                         .anyRequest().authenticated() // 나머지 요청은 인증 필요
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
         http.exceptionHandling(except -> {
             // 인증 실패 (401)
@@ -69,8 +66,8 @@ public class WebSecurityConfig {
                 response.setCharacterEncoding("UTF-8");
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write(objectMapper.writeValueAsString(Map.of(
-                        "status", ErrorStatus._UNAUTHORIZED.getCode(),
-                        "message", ErrorStatus._UNAUTHORIZED.getMessage()
+                        "status", "UNAUTHORIZED",
+                        "message", "인증되지 않은 사용자입니다"
                 )));
             });
 
@@ -80,8 +77,8 @@ public class WebSecurityConfig {
                 response.setCharacterEncoding("UTF-8");
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().write(objectMapper.writeValueAsString(Map.of(
-                        "status", ErrorStatus._FORBIDDEN.getCode(),
-                        "message", ErrorStatus._FORBIDDEN.getMessage()
+                        "status", "FORBIDDEN",
+                        "message", "접근 권한이 없습니다"
                 )));
             });
         });
@@ -99,11 +96,7 @@ public class WebSecurityConfig {
                 "http://localhost:8080",
                 "http://localhost:5173",
                 "ws://localhost:8080",
-                "http://13.209.210.46:8080",
-                "ws://13.209.210.46:8080",
-                "http://localhost:3000",
-                "https://financeus.netlify.app",
-                "https://financeusapi.shop"
+                "http://localhost:3000"
         );
 
         config.setAllowedOrigins(allowedOrigins);
@@ -118,6 +111,11 @@ public class WebSecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
     }
 
 }
