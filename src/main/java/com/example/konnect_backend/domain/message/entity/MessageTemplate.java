@@ -1,6 +1,6 @@
-package com.example.konnect_backend.domain.ai.entity;
+package com.example.konnect_backend.domain.message.entity;
 
-import com.example.konnect_backend.domain.ai.entity.status.ScenarioCategory;
+import com.example.konnect_backend.domain.message.entity.status.ScenarioCategory;
 import com.example.konnect_backend.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
