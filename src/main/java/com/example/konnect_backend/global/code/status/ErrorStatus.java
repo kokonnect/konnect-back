@@ -35,6 +35,11 @@ public enum ErrorStatus implements BaseErrorCode {
     JWT_SIGNATURE_INVALID(HttpStatus.UNAUTHORIZED, "AUTH001", "JWT 서명이 올바르지 않습니다."),
     JWT_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH002", "JWT 토큰이 만료되었습니다."),
     JWT_MALFORMED(HttpStatus.UNAUTHORIZED, "AUTH003", "JWT 토큰이 올바르지 않은 형식입니다."),
+    GUEST_TOKEN_REQUIRED(HttpStatus.UNAUTHORIZED, "AUTH010", "인증이 필요합니다(게스트 토큰)."),
+    GUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH011", "게스트 사용자가 존재하지 않습니다."),
+    ALREADY_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 회원입니다."),
+    SOCIAL_ID_DUPLICATE(HttpStatus.CONFLICT, "MEMBER4013", "이미 가입된 socialId 입니다."),
+
 
     // Chat Error
     CHATROOM_NOT_FOUND(HttpStatus.NOT_FOUND,"CHAT4001","채팅방을 찾을 수 없습니다."),

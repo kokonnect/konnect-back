@@ -42,6 +42,13 @@ public class AuthController {
         return ApiResponse.onSuccess(response);
     }
 
+    @PostMapping("/guest")
+    @Operation(summary = "게스트 토큰 발급", description = "회원가입 전, 게스트용 계정을 생성하고 토큰을 발급합니다.")
+    public ApiResponse<AuthResponse> issueGuest() {
+        return ApiResponse.onSuccess(authService.issueGuest());
+    }
+
+
     @PostMapping("/signin")
     @Operation(
             summary = "로그인",

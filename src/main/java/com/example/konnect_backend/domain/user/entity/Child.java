@@ -1,11 +1,10 @@
+// src/main/java/com/example/konnect_backend/domain/user/entity/Child.java
 package com.example.konnect_backend.domain.user.entity;
 
 import com.example.konnect_backend.global.common.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import java.util.Date;
 
 @Entity
 @Getter
@@ -13,12 +12,16 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Child extends BaseEntity {
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long childId;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false) // 부모(User) 필수
     private User user;
+
+    @Temporal(TemporalType.DATE)
+    private Date birthDate;
 
     private String name;
     private String school;
