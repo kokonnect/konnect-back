@@ -1,119 +1,63 @@
-name: konnect-backend CI/CD (simple)
+name: Deploy Konnect Backend
 
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
 
-concurrency:
-  group: deploy-konnect-backend
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
           cache: gradle
 
-      - name: Build
+      - name: Build application
         run: |
-          set -euo pipefail
           chmod +x gradlew
           ./gradlew clean bootJar -x test
 
-      - name: Find jar
-        id: jar
-        run: echo "path=$(ls -1 build/libs/*.jar | head -n 1)" >> $GITHUB_OUTPUT
-
-      - name: Prepare SSH
-        env:
-          PROD_HOST: ${{ secrets.PROD_HOST }}
-          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
-          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+      - name: Setup SSH
         run: |
-          set -euo pipefail
           mkdir -p ~/.ssh
-          echo "${PROD_SSH_KEY}" > ~/.ssh/id_rsa
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${PROD_SSH_PORT:-22} ${PROD_HOST} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
 
-      # ▶ 멀티라인 시크릿(PROD_ENV_FILE)을 러너에서 파일로 저장
-      - name: Create env file from secret
-        env:
-          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
-          PROD_SERVER_PORT: ${{ secrets.PROD_SERVER_PORT }}
+      - name: Deploy to server
         run: |
-          set -euo pipefail
-          # 시크릿 그대로(개행 포함) 저장
-          printf '%s' "$PROD_ENV_FILE" > app.env
-          # SERVER_PORT가 비어있으면 기본값 추가(있으면 아래 라인은 무시돼도 무방)
-          if ! grep -q '^SERVER_PORT=' app.env; then
-            echo "SERVER_PORT=${PROD_SERVER_PORT:-8080}" >> app.env
-          fi
-          echo "env size: $(wc -c < app.env) bytes"
-
-      - name: Upload jar & env
-        env:
-          PROD_HOST: ${{ secrets.PROD_HOST }}
-          PROD_USER: ${{ secrets.PROD_USER }}
-          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
-        run: |
-          set -euo pipefail
-          scp -P ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa \
-            "${{ steps.jar.outputs.path }}" \
-            "${PROD_USER}@${PROD_HOST}:/tmp/konnect-backend.jar"
-          scp -P ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa \
-            app.env \
-            "${PROD_USER}@${PROD_HOST}:/tmp/konnect-backend.env"
-
-      - name: Restart app (nohup + .env)
-        env:
-          PROD_HOST: ${{ secrets.PROD_HOST }}
-          PROD_USER: ${{ secrets.PROD_USER }}
-          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
-        run: |
-          set -euo pipefail
-          ssh -p ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa ${PROD_USER}@${PROD_HOST} '
-            set -euo pipefail
-            APP_DIR="$HOME/konnect-backend"
-            mkdir -p "$APP_DIR"
-
-            # 파일 배치
-            mv /tmp/konnect-backend.jar "$APP_DIR/app.jar"
-            mv /tmp/konnect-backend.env "$APP_DIR/.env"
-            chmod 600 "$APP_DIR/.env"
-
-            # CRLF 제거(있을 경우)
-            sed -i "s/\r$//" "$APP_DIR/.env"
-
-            # 이전 프로세스 강제 종료
-            pgrep -fa "java.*$APP_DIR/app.jar" | awk "{print \$1}" | xargs -r kill || true
-            sleep 2
-            pgrep -fa "java.*$APP_DIR/app.jar" | awk "{print \$1}" | xargs -r kill -9 || true
-
-            # 로그 초기화 후 실행(.env export)
-            : > "$APP_DIR/app.log"
-            set -a; . "$APP_DIR/.env"; set +a
-
-            # 필수 키 검증(값은 출력 안 함)
-            [ -n "${DB_URL:-}" ] || [ -n "${SPRING_DATASOURCE_URL:-}" ] || { echo "DB URL not set"; exit 1; }
-
-            nohup java -jar "$APP_DIR/app.jar" --server.address=0.0.0.0 > "$APP_DIR/app.log" 2>&1 &
-
-            # 헬스체크
-            sleep 2
-            if ! pgrep -f "java.*$APP_DIR/app.jar" >/dev/null; then
-              echo "Start failed. Last logs ↓"
-              tail -n 200 "$APP_DIR/app.log"
+          # Upload JAR file
+          scp build/libs/*.jar ${{ secrets.USERNAME }}@${{ secrets.PROD_HOST }}:~/app.jar
+          
+          # Deploy and restart
+          ssh ${{ secrets.USERNAME }}@${{ secrets.PROD_HOST }} << 'EOF'
+            # Stop existing application
+            sudo pkill -f "java.*app.jar" || true
+            sleep 3
+            
+            # Start new application
+            nohup java -jar ~/app.jar \
+              --spring.datasource.url="${{ secrets.DB_URL }}" \
+              --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
+              --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
+              --server.port="${{ secrets.PROD_SERVER_PORT }}" \
+              --jwt.secret="${{ secrets.JWT_SECRET }}" \
+              > ~/app.log 2>&1 &
+            
+            # Wait and check if application started
+            sleep 10
+            if pgrep -f "java.*app.jar" > /dev/null; then
+              echo "✅ Application started successfully"
+            else
+              echo "❌ Application failed to start"
+              tail -50 ~/app.log
               exit 1
             fi
-
-            echo "Deployed. Log: $APP_DIR/app.log"
-          '
+          EOF
