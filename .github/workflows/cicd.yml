@@ -24,6 +24,7 @@ jobs:
 
       - name: Build
         run: |
+          set -euo pipefail
           chmod +x gradlew
           ./gradlew clean bootJar -x test
 
@@ -37,31 +38,26 @@ jobs:
           PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
           PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           echo "${PROD_SSH_KEY}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${PROD_SSH_PORT:-22} ${PROD_HOST} >> ~/.ssh/known_hosts
 
-      # .env를 러너에서 만든 뒤 올린다 (YAML 에러 방지)
-      - name: Create env file
+      # ▶ 멀티라인 시크릿(PROD_ENV_FILE)을 러너에서 파일로 저장
+      - name: Create env file from secret
         env:
-          DB_URL: ${{ secrets.DB_URL }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
+          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
           PROD_SERVER_PORT: ${{ secrets.PROD_SERVER_PORT }}
-          GITHUB_SHA: ${{ github.sha }}
         run: |
-          printf "%s\n" \
-            "SPRING_DATASOURCE_URL=${DB_URL}" \
-            "SPRING_DATASOURCE_USERNAME=${DB_USERNAME}" \
-            "SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}" \
-            "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}" \
-            "SPRING_FLYWAY_ENABLED=true" \
-            "SPRING_JPA_HIBERNATE_DDL_AUTO=none" \
-            "SERVER_PORT=${PROD_SERVER_PORT:-8080}" \
-            "REVISION=${GITHUB_SHA}" \
-            > app.env
+          set -euo pipefail
+          # 시크릿 그대로(개행 포함) 저장
+          printf '%s' "$PROD_ENV_FILE" > app.env
+          # SERVER_PORT가 비어있으면 기본값 추가(있으면 아래 라인은 무시돼도 무방)
+          if ! grep -q '^SERVER_PORT=' app.env; then
+            echo "SERVER_PORT=${PROD_SERVER_PORT:-8080}" >> app.env
+          fi
+          echo "env size: $(wc -c < app.env) bytes"
 
       - name: Upload jar & env
         env:
@@ -69,6 +65,7 @@ jobs:
           PROD_USER: ${{ secrets.PROD_USER }}
           PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
         run: |
+          set -euo pipefail
           scp -P ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa \
             "${{ steps.jar.outputs.path }}" \
             "${PROD_USER}@${PROD_HOST}:/tmp/konnect-backend.jar"
@@ -76,15 +73,16 @@ jobs:
             app.env \
             "${PROD_USER}@${PROD_HOST}:/tmp/konnect-backend.env"
 
-      - name: Restart app (nohup)
+      - name: Restart app (nohup + .env)
         env:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_USER: ${{ secrets.PROD_USER }}
           PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
-          PROD_APP_DIR: ${{ secrets.PROD_APP_DIR }}
         run: |
-          ssh -p ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa ${PROD_USER}@${PROD_HOST} bash -euo pipefail -c '
-            APP_DIR="${PROD_APP_DIR:-$HOME/konnect-backend}"
+          set -euo pipefail
+          ssh -p ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa ${PROD_USER}@${PROD_HOST} '
+            set -euo pipefail
+            APP_DIR="$HOME/konnect-backend"
             mkdir -p "$APP_DIR"
 
             # 파일 배치
@@ -92,15 +90,30 @@ jobs:
             mv /tmp/konnect-backend.env "$APP_DIR/.env"
             chmod 600 "$APP_DIR/.env"
 
+            # CRLF 제거(있을 경우)
+            sed -i "s/\r$//" "$APP_DIR/.env"
+
             # 이전 프로세스 강제 종료
             pgrep -fa "java.*$APP_DIR/app.jar" | awk "{print \$1}" | xargs -r kill || true
             sleep 2
             pgrep -fa "java.*$APP_DIR/app.jar" | awk "{print \$1}" | xargs -r kill -9 || true
 
-            # 로그 초기화 후 실행
+            # 로그 초기화 후 실행(.env export)
             : > "$APP_DIR/app.log"
             set -a; . "$APP_DIR/.env"; set +a
+
+            # 필수 키 검증(값은 출력 안 함)
+            [ -n "${DB_URL:-}" ] || [ -n "${SPRING_DATASOURCE_URL:-}" ] || { echo "DB URL not set"; exit 1; }
+
             nohup java -jar "$APP_DIR/app.jar" --server.address=0.0.0.0 > "$APP_DIR/app.log" 2>&1 &
 
-            echo "Deployed $REVISION. Log: $APP_DIR/app.log"
+            # 헬스체크
+            sleep 2
+            if ! pgrep -f "java.*$APP_DIR/app.jar" >/dev/null; then
+              echo "Start failed. Last logs ↓"
+              tail -n 200 "$APP_DIR/app.log"
+              exit 1
+            fi
+
+            echo "Deployed. Log: $APP_DIR/app.log"
           '
