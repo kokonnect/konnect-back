@@ -5,6 +5,10 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-konnect-backend
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -38,7 +42,28 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${PROD_SSH_PORT:-22} ${PROD_HOST} >> ~/.ssh/known_hosts
 
-      - name: Upload jar
+      # .env를 러너에서 만든 뒤 올린다 (YAML 에러 방지)
+      - name: Create env file
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
+          PROD_SERVER_PORT: ${{ secrets.PROD_SERVER_PORT }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          printf "%s\n" \
+            "SPRING_DATASOURCE_URL=${DB_URL}" \
+            "SPRING_DATASOURCE_USERNAME=${DB_USERNAME}" \
+            "SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}" \
+            "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}" \
+            "SPRING_FLYWAY_ENABLED=true" \
+            "SPRING_JPA_HIBERNATE_DDL_AUTO=none" \
+            "SERVER_PORT=${PROD_SERVER_PORT:-8080}" \
+            "REVISION=${GITHUB_SHA}" \
+            > app.env
+
+      - name: Upload jar & env
         env:
           PROD_HOST: ${{ secrets.PROD_HOST }}
           PROD_USER: ${{ secrets.PROD_USER }}
@@ -47,6 +72,9 @@ jobs:
           scp -P ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa \
             "${{ steps.jar.outputs.path }}" \
             "${PROD_USER}@${PROD_HOST}:/tmp/konnect-backend.jar"
+          scp -P ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa \
+            app.env \
+            "${PROD_USER}@${PROD_HOST}:/tmp/konnect-backend.env"
 
       - name: Restart app (nohup)
         env:
@@ -54,21 +82,25 @@ jobs:
           PROD_USER: ${{ secrets.PROD_USER }}
           PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
           PROD_APP_DIR: ${{ secrets.PROD_APP_DIR }}
-          PROD_SERVER_PORT: ${{ secrets.PROD_SERVER_PORT }}
-          PROD_ENV_FILE_B64: ${{ secrets.PROD_ENV_FILE_B64 }}
         run: |
           ssh -p ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa ${PROD_USER}@${PROD_HOST} bash -euo pipefail -c '
             APP_DIR="${PROD_APP_DIR:-$HOME/konnect-backend}"
-            PORT="${PROD_SERVER_PORT:-8080}"
-
             mkdir -p "$APP_DIR"
-            mv /tmp/konnect-backend.jar "$APP_DIR/app.jar"
 
-            # .env 복원
-            echo "${PROD_ENV_FILE_B64}" | base64 -d > "$APP_DIR/.env"
+            # 파일 배치
+            mv /tmp/konnect-backend.jar "$APP_DIR/app.jar"
+            mv /tmp/konnect-backend.env "$APP_DIR/.env"
             chmod 600 "$APP_DIR/.env"
 
+            # 이전 프로세스 강제 종료
+            pgrep -fa "java.*$APP_DIR/app.jar" | awk "{print \$1}" | xargs -r kill || true
+            sleep 2
+            pgrep -fa "java.*$APP_DIR/app.jar" | awk "{print \$1}" | xargs -r kill -9 || true
+
+            # 로그 초기화 후 실행
+            : > "$APP_DIR/app.log"
             set -a; . "$APP_DIR/.env"; set +a
             nohup java -jar "$APP_DIR/app.jar" --server.address=0.0.0.0 > "$APP_DIR/app.log" 2>&1 &
-            echo "Restarted. Log: $APP_DIR/app.log"
+
+            echo "Deployed $REVISION. Log: $APP_DIR/app.log"
           '
