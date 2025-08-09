@@ -55,22 +55,20 @@ jobs:
           PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
           PROD_APP_DIR: ${{ secrets.PROD_APP_DIR }}
           PROD_SERVER_PORT: ${{ secrets.PROD_SERVER_PORT }}
+          PROD_ENV_FILE_B64: ${{ secrets.PROD_ENV_FILE_B64 }}
         run: |
           ssh -p ${PROD_SSH_PORT:-22} -i ~/.ssh/id_rsa ${PROD_USER}@${PROD_HOST} bash -euo pipefail -c '
             APP_DIR="${PROD_APP_DIR:-$HOME/konnect-backend}"
             PORT="${PROD_SERVER_PORT:-8080}"
+
             mkdir -p "$APP_DIR"
             mv /tmp/konnect-backend.jar "$APP_DIR/app.jar"
 
-            # 기존 프로세스 종료(있으면)
-            pids=$(pgrep -f "java .*${APP_DIR}/app.jar" || true)
-            if [ -n "$pids" ]; then kill $pids || true; sleep 2; fi
+            # .env 복원
+            echo "${PROD_ENV_FILE_B64}" | base64 -d > "$APP_DIR/.env"
+            chmod 600 "$APP_DIR/.env"
 
-            # 재기동
-            nohup java -jar "$APP_DIR/app.jar" \
-              --server.address=0.0.0.0 \
-              --server.port="$PORT" \
-              > "$APP_DIR/app.log" 2>&1 &
-
+            set -a; . "$APP_DIR/.env"; set +a
+            nohup java -jar "$APP_DIR/app.jar" --server.address=0.0.0.0 > "$APP_DIR/app.log" 2>&1 &
             echo "Restarted. Log: $APP_DIR/app.log"
           '
