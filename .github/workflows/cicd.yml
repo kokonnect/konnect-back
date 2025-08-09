@@ -24,6 +24,15 @@ jobs:
           chmod +x gradlew
           ./gradlew clean bootJar -x test
 
+      - name: Verify secrets
+        run: |
+          echo "Checking required secrets..."
+          if [ -z "${{ secrets.PROD_SSH_KEY }}" ]; then echo "❌ PROD_SSH_KEY is missing"; exit 1; fi
+          if [ -z "${{ secrets.PROD_HOST }}" ]; then echo "❌ PROD_HOST is missing"; exit 1; fi
+          if [ -z "${{ secrets.PROD_USER }}" ]; then echo "❌ PROD_USER is missing"; exit 1; fi
+          if [ -z "${{ secrets.DB_URL }}" ]; then echo "❌ DB_URL is missing"; exit 1; fi
+          echo "✅ All required secrets are present"
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -34,10 +43,10 @@ jobs:
       - name: Deploy to server
         run: |
           # Upload JAR file
-          scp build/libs/*.jar ${{ secrets.USERNAME }}@${{ secrets.PROD_HOST }}:~/app.jar
+          scp build/libs/*.jar ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:~/app.jar
           
           # Deploy and restart
-          ssh ${{ secrets.USERNAME }}@${{ secrets.PROD_HOST }} << 'EOF'
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
             # Stop existing application
             sudo pkill -f "java.*app.jar" || true
             sleep 3
@@ -55,8 +64,10 @@ jobs:
             sleep 10
             if pgrep -f "java.*app.jar" > /dev/null; then
               echo "✅ Application started successfully"
+              echo "📋 Check logs: tail -f ~/app.log"
             else
               echo "❌ Application failed to start"
+              echo "📋 Last 50 lines of log:"
               tail -50 ~/app.log
               exit 1
             fi
