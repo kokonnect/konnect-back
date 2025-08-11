@@ -16,6 +16,7 @@ import java.util.Date;
 public class Child extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "child_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

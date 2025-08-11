@@ -141,7 +141,7 @@ public class AuthService {
         if (saOpt.isPresent()) {
             SocialAccount sa = saOpt.get();
             if (!sa.getUser().getId().equals(guest.getId())) {
-                sa.setUser(guest); // ✅ 기존 연결을 게스트로 재지정
+                sa.changeUser(guest); // ✅ 기존 연결을 게스트로 재지정
                 socialAccountRepository.save(sa);
             }
         } else {
@@ -149,7 +149,7 @@ public class AuthService {
                     .user(guest).provider(provider).providerUserId(providerUserId).build());
         }
         // 승격
-        guest.setGuest(false);
+        guest.upgradeToUser();
         userRepository.save(guest);
 
         String access = jwtTokenProvider.createToken(guest.getId(), "USER");

@@ -44,12 +44,6 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /** ❌ (구방식) socialId 기반 생성 — 점진 이행 중이면 임시 유지 가능 */
-    @Deprecated
-    public String createToken(String socialId) {
-        // 필요하면 내부적으로 USER 권한 부여 로직을 넣어도 됨
-        return createToken(Long.valueOf(socialId), "USER"); // 진짜 socialId가 숫자가 아니라면 쓰지마!
-    }
 
     /** ✅ 토큰 → Authentication (UserDetailsService 불필요) */
     public Authentication getAuthentication(String token) {

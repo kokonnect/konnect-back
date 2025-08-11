@@ -10,8 +10,8 @@ import java.util.Date;
 import java.time.LocalDateTime;
 
 @Entity
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@Table(name = "users") // user 예약어 회피 권장
+@Getter @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(name = "user")
 public class User extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -31,5 +31,26 @@ public class User extends BaseEntity {
         this.email = email;
         this.language = language;
         this.guest = false;
+    }
+    
+    public void upgradeToUser() {
+        this.guest = false;
+    }
+    
+    public void updateEmail(String email) {
+        this.email = email;
+    }
+    
+    public void updateName(String name) {
+        this.name = name;
+    }
+    
+    public void updateProfile(String email, String name) {
+        if (email != null && !email.isBlank()) {
+            this.email = email;
+        }
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
     }
 }

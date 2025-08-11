@@ -21,21 +21,15 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+                                        Authentication authentication) throws IOException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-
-        Object idAttr = oAuth2User.getAttribute("userId");
-        if (idAttr == null) {
-            throw new IllegalStateException("OAuth2User does not contain userId attribute");
-        }
-
-        Long userId = ((Number) idAttr).longValue();
+        Long userId = ((Number) oAuth2User.getAttribute("userId")).longValue();
         String providerUserId = String.valueOf(oAuth2User.getAttribute("providerUserId"));
 
-        // JWT 발급
         String accessToken = jwtTokenProvider.createToken(userId, "USER");
 
-        // 토큰 전달 방법: 쿼리 파라미터 예시
+        // ✅ 여기서 SecurityContextHolder.setAuthentication(...) 하지 않음
         response.sendRedirect("/login/success?token=" + accessToken + "&providerUserId=" + providerUserId);
     }
+
 }

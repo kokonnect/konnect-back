@@ -1,18 +1,18 @@
 package com.example.konnect_backend.domain.user.entity;
 
 import com.example.konnect_backend.domain.user.entity.status.Provider;
+import com.example.konnect_backend.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Table(name = "social_account",
         uniqueConstraints = @UniqueConstraint(columnNames = {"provider", "providerUserId"}))
-public class SocialAccount {
+public class SocialAccount extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -26,5 +26,9 @@ public class SocialAccount {
 
     @Column(nullable = false)
     private String providerUserId;   // Google=sub, Kakao=id
+
+    public void changeUser(User newUser) {
+        this.user = newUser;
+    }
 
 }

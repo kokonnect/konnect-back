@@ -131,7 +131,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (saOpt.isPresent()) {
             SocialAccount sa = saOpt.get();
             if (!sa.getUser().getId().equals(guest.getId())) {
-                sa.setUser(guest);
+                sa.changeUser(guest);
                 socialRepo.save(sa);
             }
         } else {
@@ -167,12 +167,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     /** 기본 정보 채움 */
     private void promoteAndFill(User u, String email, String name) {
-        if (u.isGuest()) u.setGuest(false);
+        if (u.isGuest()) u.upgradeToUser();
         if (u.getEmail() == null || u.getEmail().isBlank()) {
-            u.setEmail(email != null && !email.isBlank() ? email : "test_" + u.getId() + "@example.com");
+            u.updateEmail(email != null && !email.isBlank() ? email : "test_" + u.getId() + "@example.com");
         }
         if (u.getName() == null || u.getName().isBlank()) {
-            u.setName(name != null && !name.isBlank() ? name : "User-" + u.getId());
+            u.updateName(name != null && !name.isBlank() ? name : "User-" + u.getId());
         }
     }
 
