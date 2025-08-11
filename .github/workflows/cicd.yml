@@ -1,5 +1,3 @@
-name: Deploy Konnect Backend
-
 on:
   push:
     branches: [ "main" ]
@@ -23,7 +21,6 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew clean bootJar -x test
-
       - name: Verify secrets
         run: |
           echo "Checking required secrets..."

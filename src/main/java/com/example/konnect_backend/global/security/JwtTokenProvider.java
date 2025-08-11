@@ -7,55 +7,62 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @Component
-public class
-JwtTokenProvider {
+public class JwtTokenProvider {
 
     private final SecretKey key;
     private final long validityInMilliseconds;
-    private final UserDetailsService userDetailsService;
 
-    public JwtTokenProvider(@Value("${jwt.secret:defaultSecretKeyForDevelopmentPurposeOnly12345678}") String secretKey,
-                           @Value("${jwt.token-validity-in-seconds:86400}") long validityInSeconds,
-                           UserDetailsService userDetailsService) {
+    public JwtTokenProvider(
+            @Value("${jwt.secret:defaultSecretKeyForDevelopmentPurposeOnly12345678}") String secretKey,
+            @Value("${jwt.token-validity-in-seconds:86400}") long validityInSeconds
+    ) {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
         this.validityInMilliseconds = validityInSeconds * 1000;
-        this.userDetailsService = userDetailsService;
     }
 
-    public String createToken(String username) {
+    /** ✅ 새 방식: userId + role(GUEST/USER) 을 토큰에 넣기 */
+    public String createToken(Long userId, String role) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + validityInMilliseconds);
+        Date exp = new Date(now.getTime() + validityInMilliseconds);
 
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(String.valueOf(userId))   // sub = userId
+                .claim("role", role)                  // "GUEST" or "USER"
                 .setIssuedAt(now)
-                .setExpiration(validity)
+                .setExpiration(exp)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
+
+    /** ✅ 토큰 → Authentication (UserDetailsService 불필요) */
     public Authentication getAuthentication(String token) {
-        UserDetails userDetails = userDetailsService.loadUserByUsername(getUsername(token));
-        return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
+        Claims claims = parseClaims(token);
+        String sub = claims.getSubject();              // userId
+        String role = claims.get("role", String.class);
+        return new UsernamePasswordAuthenticationToken(
+                sub,                                   // principal = userId 문자열
+                "",                                    // credentials
+                List.of(new SimpleGrantedAuthority("ROLE_" + role)) // ROLE_GUEST/ROLE_USER
+        );
     }
 
-    public String getUsername(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+    public Long getUserId(String token) {
+        return Long.valueOf(parseClaims(token).getSubject());
+    }
+
+    public String getRole(String token) {
+        return parseClaims(token).get("role", String.class);
     }
 
     public String resolveToken(HttpServletRequest request) {
@@ -68,11 +75,19 @@ JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            parseClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             log.error("Invalid JWT token: {}", e.getMessage());
             return false;
         }
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

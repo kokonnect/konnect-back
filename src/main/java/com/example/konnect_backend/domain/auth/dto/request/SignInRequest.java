@@ -1,20 +1,27 @@
+// src/main/java/com/example/konnect_backend/domain/auth/dto/request/SignInRequest.java
 package com.example.konnect_backend.domain.auth.dto.request;
 
+import com.example.konnect_backend.domain.user.entity.status.Provider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
 
-@Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Schema(description = "로그인 요청 DTO")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Schema(description = "소셜 로그인(테스트용) 요청 DTO")
 public class SignInRequest {
 
-    @NotBlank(message = "소셜 ID는 필수입니다")
-    @Schema(description = "소셜 로그인 ID", example = "kakao_123456789")
-    private String socialId;
+    @NotNull
+    @Schema(example = "GOOGLE", description = "소셜 제공자")
+    private Provider provider;
+
+    @NotBlank
+    @Schema(example = "1234567890", description = "provider 고유 식별자 (Google=sub, Kakao=id)")
+    private String providerUserId;
+
+    @Schema(example = "user@email.com", description = "선택. 있을 때 동일 이메일 유저와 연결")
+    private String email;
+
+    @Schema(example = "홍길동")
+    private String name;
 }
