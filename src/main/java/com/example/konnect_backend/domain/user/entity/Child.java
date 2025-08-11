@@ -26,4 +26,6 @@ public class Child extends BaseEntity {
     private String name;
     private String school;
     private String grade;
+    private String className;
+    private String teacherName;
 }

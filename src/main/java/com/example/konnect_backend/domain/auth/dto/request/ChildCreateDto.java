@@ -17,4 +17,6 @@ public class ChildCreateDto {
     private String grade;
     @Schema(example = "2017-03-01")
     private Date birthDate;
+    private String className;
+    private String teacherName;
 }
