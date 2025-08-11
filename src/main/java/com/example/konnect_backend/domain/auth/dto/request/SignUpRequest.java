@@ -15,20 +15,13 @@ import java.util.List;
 @Schema(description = "회원가입 요청 DTO(게스트 승격)")
 public class SignUpRequest {
 
-    @NotBlank(message = "소셜 ID는 필수입니다")
-    @Schema(description = "소셜 로그인 ID", example = "kakao_123456789")
-    private String socialId;
 
     @NotBlank(message = "이름은 필수입니다")
     @Schema(description = "사용자 이름", example = "홍길동")
     private String name;
 
-    @NotNull(message = "Provider는 필수입니다")
-    @Schema(description = "소셜 로그인 제공자", example = "KAKAO")
-    private Provider provider;
 
-    @Schema(description = "사용자 출생일", example = "1999-10-01")
-    private Date birthDate;
+    private String email;
 
     @NotNull
     @Schema(description = "선호 언어", example = "KOREAN")

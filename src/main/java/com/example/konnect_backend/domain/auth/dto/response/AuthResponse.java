@@ -15,15 +15,13 @@ public class AuthResponse {
     private String tokenType;
     private Long userId;
     private String role;     // GUEST or USER
-    private Provider provider;
 
-    public static AuthResponse of(String accessToken, Long userId, String role, Provider provider) {
+    public static AuthResponse of(String accessToken, Long userId, String role) {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .tokenType("Bearer")
                 .userId(userId)
                 .role(role)
-                .provider(provider)
                 .build();
     }
 }

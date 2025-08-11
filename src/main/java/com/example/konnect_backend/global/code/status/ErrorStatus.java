@@ -14,6 +14,8 @@ public enum ErrorStatus implements BaseErrorCode {
     _BAD_REQUEST(HttpStatus.BAD_REQUEST,"COMMON400","잘못된 요청입니다."),
     _UNAUTHORIZED(HttpStatus.UNAUTHORIZED,"COMMON401","인증이 필요합니다."),
     _FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON403", "금지된 요청입니다."),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED,"AUTH401","인증이 필요합니다."),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH403", "권한이 없습니다."),
     DATABASE_ERROR(HttpStatus.BAD_REQUEST, "COMMON404", "데이터베이스 에러가 발생하였습니다. 다시 시도해주십시오. "),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND,"COMMON405", "해당 Refresh Token을 찾을 수 없습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.BAD_REQUEST,"COMMON406", "유효하지 않은 Refresh Token입니다."),
@@ -39,6 +41,7 @@ public enum ErrorStatus implements BaseErrorCode {
     GUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH011", "게스트 사용자가 존재하지 않습니다."),
     ALREADY_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 회원입니다."),
     SOCIAL_ID_DUPLICATE(HttpStatus.CONFLICT, "MEMBER4013", "이미 가입된 socialId 입니다."),
+    CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "CHILD4001", "자녀를 찾을 수 없습니다."),
 
 
     // Chat Error

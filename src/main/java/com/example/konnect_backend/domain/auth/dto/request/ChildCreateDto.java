@@ -4,6 +4,7 @@ package com.example.konnect_backend.domain.auth.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Getter @Setter
@@ -16,7 +17,7 @@ public class ChildCreateDto {
     @Schema(example = "3학년")
     private String grade;
     @Schema(example = "2017-03-01")
-    private Date birthDate;
+    private LocalDate birthDate;
     private String className;
     private String teacherName;
 }
