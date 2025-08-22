@@ -54,7 +54,24 @@ public enum ErrorStatus implements BaseErrorCode {
 
     IMAGE_FAILED(HttpStatus.BAD_REQUEST,"IMAGE4001","이미지 올리는 것을 실패하였습니다."),
 
-    IMAGE_TEXT_FAILD(HttpStatus.BAD_REQUEST, "IMAGETEXT4001", "이미지 텍스트 추출을 실패하였습니다.");
+    IMAGE_TEXT_FAILD(HttpStatus.BAD_REQUEST, "IMAGETEXT4001", "이미지 텍스트 추출을 실패하였습니다."),
+    
+    // File Translation Errors
+    FILE_EMPTY(HttpStatus.BAD_REQUEST, "FILE4001", "빈 파일입니다."),
+    FILE_NAME_MISSING(HttpStatus.BAD_REQUEST, "FILE4002", "파일명이 없습니다."),
+    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE4003", "파일 크기는 20MB를 초과할 수 없습니다."),
+    INVALID_PDF_FILE(HttpStatus.BAD_REQUEST, "FILE4004", "PDF 파일이 아닙니다."),
+    INVALID_IMAGE_FILE(HttpStatus.BAD_REQUEST, "FILE4005", "이미지 파일이 아닙니다."),
+    UNSUPPORTED_FILE_TYPE(HttpStatus.BAD_REQUEST, "FILE4006", "지원하지 않는 파일 타입입니다."),
+    TEXT_EXTRACTION_FAILED(HttpStatus.BAD_REQUEST, "FILE4007", "파일에서 텍스트를 추출할 수 없습니다."),
+    INVALID_IMAGE_FORMAT(HttpStatus.BAD_REQUEST, "FILE4008", "유효하지 않은 이미지 파일입니다."),
+    IMAGE_OCR_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE4009", "이미지 텍스트 추출 중 오류가 발생했습니다."),
+    TRANSLATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE4010", "번역 중 오류가 발생했습니다."),
+    FILE_TRANSLATION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "FILE4011", "파일 번역 중 오류가 발생했습니다."),
+    
+    // AI Service Errors
+    GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4001", "콘텐츠 생성 중 오류가 발생했습니다."),
+    TTS_CONVERSION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4002", "음성 변환 중 오류가 발생했습니다.");
 
 
 
