@@ -15,6 +15,7 @@ public class FileTranslationResponse {
     
     private String extractedText;
     private String translatedText;
+    private String summary;
     private String originalFileName;
     private FileType fileType;
     private TargetLanguage targetLanguage;
