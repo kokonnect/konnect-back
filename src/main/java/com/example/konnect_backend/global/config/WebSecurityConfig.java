@@ -50,6 +50,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/swagger", "/swagger/", "/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger 허용
                         //.requestMatchers("/api/user/**", "/api/booths/**", "/api/**").permitAll()   // /api 이하 경로 접근 허용\
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/ai/**").permitAll() // AI 서비스는 비로그인 허용
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/login", "/oauth2/**").permitAll()
                         .requestMatchers("/api/ws", "/api/ws/**", "/api/ws/info/**").permitAll()
