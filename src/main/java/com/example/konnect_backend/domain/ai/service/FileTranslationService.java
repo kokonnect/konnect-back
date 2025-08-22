@@ -12,26 +12,31 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.model.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
+import org.springframework.ai.reader.pdf.config.PdfDocumentReaderConfig;
+import org.springframework.ai.reader.ExtractedTextFormatter;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FileTranslationService {
     
+    private record PdfExtractionResult(String extractedText, Integer pageCount) {}
+    
     private final ChatModel chatModel;
     
-    @Value("${spring.ai.openai.api-key}")
-    private String openAiApiKey;
     
     private static final String IMAGE_OCR_PROMPT = """
             이 이미지에 포함된 모든 텍스트를 정확하게 추출해주세요.
@@ -75,20 +80,28 @@ public class FileTranslationService {
             // 파일 검증
             validateFile(request.getFile(), request.getFileType());
             
-            // 이미지 파일만 지원
-            if (request.getFileType() != FileType.IMAGE) {
+            // 파일 타입에 따른 처리
+            String extractedText;
+            Integer pageCount = null;
+            
+            if (request.getFileType() == FileType.IMAGE) {
+                // 1단계: 이미지에서 텍스트 추출 (OCR)
+                extractedText = extractTextFromImage(request.getFile());
+            } else if (request.getFileType() == FileType.PDF) {
+                // 1단계: PDF에서 텍스트 추출
+                PdfExtractionResult result = extractTextFromPdfWithPageCount(request.getFile());
+                extractedText = result.extractedText();
+                pageCount = result.pageCount();
+            } else {
                 throw new GeneralException(ErrorStatus.UNSUPPORTED_FILE_TYPE);
             }
             
-            // 1단계: 이미지에서 텍스트 추출 (OCR)
-            String extractedText = extractTextFromImage(request.getFile());
-            
-            if (extractedText == null || extractedText.trim().isEmpty()) {
+            if (extractedText.trim().isEmpty()) {
                 log.error("텍스트 추출 결과가 비어있음");
                 throw new GeneralException(ErrorStatus.TEXT_EXTRACTION_FAILED);
             }
             
-            log.info("OCR 추출 완료: {} 글자", extractedText.length());
+            log.info("텍스트 추출 완료: {} 글자", extractedText.length());
             
             // 2단계: 추출된 텍스트 번역
             String translatedText = translateText(extractedText, request.getTargetLanguage(), request.getUseSimpleLanguage());
@@ -110,7 +123,7 @@ public class FileTranslationService {
                     .originalTextLength(extractedText.length())
                     .translatedTextLength(translatedText.length())
                     .totalProcessingTimeMs(processingTime)
-                    .pageCount(null)
+                    .pageCount(pageCount)
                     .sourceLanguageHint(request.getSourceLanguageHint())
                     .build();
                     
@@ -137,20 +150,25 @@ public class FileTranslationService {
             throw new GeneralException(ErrorStatus.FILE_SIZE_EXCEEDED);
         }
         
-        // 이미지 파일만 지원
-        if (fileType != FileType.IMAGE) {
+        // 지원되는 파일 타입 검증
+        if (fileType != FileType.IMAGE && fileType != FileType.PDF) {
             throw new GeneralException(ErrorStatus.UNSUPPORTED_FILE_TYPE);
         }
         
         // MIME 타입 검증
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new GeneralException(ErrorStatus.INVALID_IMAGE_FILE);
-        }
-        
-        // OpenAI Vision API에서 지원하는 이미지 형식 확인
-        if (!isSupportedImageFormat(contentType)) {
-            throw new GeneralException(ErrorStatus.INVALID_IMAGE_FORMAT);
+        if (fileType == FileType.PDF) {
+            if (!"application/pdf".equals(contentType)) {
+                throw new GeneralException(ErrorStatus.INVALID_PDF_FILE);
+            }
+        } else if (fileType == FileType.IMAGE) {
+            if (contentType == null || !contentType.startsWith("image/")) {
+                throw new GeneralException(ErrorStatus.INVALID_IMAGE_FILE);
+            }
+            // OpenAI Vision API에서 지원하는 이미지 형식 확인
+            if (!isSupportedImageFormat(contentType)) {
+                throw new GeneralException(ErrorStatus.INVALID_IMAGE_FORMAT);
+            }
         }
     }
     
@@ -229,4 +247,54 @@ public class FileTranslationService {
             throw new GeneralException(ErrorStatus.TRANSLATION_FAILED);
         }
     }
+    
+    private PdfExtractionResult extractTextFromPdfWithPageCount(MultipartFile file) {
+        try {
+            log.info("PDF 텍스트 추출 시작: {}", file.getOriginalFilename());
+            
+            // Spring AI PagePdfDocumentReader 사용
+            ByteArrayResource resource = new ByteArrayResource(file.getBytes());
+            
+            // PDF 읽기 설정
+            PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder()
+                    .withPageTopMargin(0)
+                    .withPageExtractedTextFormatter(ExtractedTextFormatter.builder()
+                            .withNumberOfTopTextLinesToDelete(0)
+                            .build())
+                    .withPagesPerDocument(1) // 페이지당 1개 문서
+                    .build();
+            
+            // PagePdfDocumentReader로 PDF 텍스트 추출
+            PagePdfDocumentReader pdfReader = new PagePdfDocumentReader(resource, config);
+            List<Document> documents = pdfReader.read();
+            
+            if (documents.isEmpty()) {
+                log.error("PDF에서 추출된 문서가 없음");
+                throw new GeneralException(ErrorStatus.TEXT_EXTRACTION_FAILED);
+            }
+            
+            // 모든 페이지의 텍스트를 하나로 합치기
+            String extractedText = documents.stream()
+                    .map(Document::getContent)
+                    .collect(Collectors.joining("\n\n"));
+            
+            if (extractedText == null || extractedText.trim().isEmpty()) {
+                log.error("PDF 텍스트 추출 결과가 비어있음");
+                throw new GeneralException(ErrorStatus.TEXT_EXTRACTION_FAILED);
+            }
+            
+            log.info("PDF 텍스트 추출 성공: {} 페이지, {} 글자", documents.size(), extractedText.length());
+            return new PdfExtractionResult(extractedText.trim(), documents.size());
+            
+        } catch (GeneralException e) {
+            throw e;
+        } catch (IOException e) {
+            log.error("PDF 파일 읽기 중 오류 발생", e);
+            throw new GeneralException(ErrorStatus.TEXT_EXTRACTION_FAILED);
+        } catch (Exception e) {
+            log.error("PDF 텍스트 추출 중 예상치 못한 오류 발생", e);
+            throw new GeneralException(ErrorStatus.TEXT_EXTRACTION_FAILED);
+        }
+    }
+    
 }
