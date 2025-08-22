@@ -69,7 +69,7 @@ public class FileTranslationService {
             """;
     
     private static final String SUMMARY_PROMPT_TEMPLATE = """
-            다음 번역된 텍스트를 간단히 요약해주세요.
+            다음 번역된 텍스트를 {targetLanguage}로 간단히 요약해주세요.
             
             번역된 텍스트:
             {translatedText}
@@ -78,7 +78,7 @@ public class FileTranslationService {
             - 핵심 내용만을 3-5줄로 요약해주세요
             - 중요한 정보나 결론을 우선적으로 포함해주세요
             - 간결하고 이해하기 쉽게 작성해주세요
-            - 요약문만 출력하고 다른 설명은 하지 마세요
+            - {targetLanguage}로 요약문만 출력하고 다른 설명은 하지 마세요
             
             요약:
             """;
@@ -122,7 +122,7 @@ public class FileTranslationService {
             String translatedText = translateText(extractedText, request.getTargetLanguage(), request.getUseSimpleLanguage());
             
             // 3단계: 번역된 텍스트 요약
-            String summary = generateSummary(translatedText);
+            String summary = generateSummary(translatedText, request.getTargetLanguage());
             
             long endTime = System.currentTimeMillis();
             long processingTime = endTime - startTime;
@@ -316,13 +316,14 @@ public class FileTranslationService {
         }
     }
     
-    private String generateSummary(String translatedText) {
+    private String generateSummary(String translatedText, TargetLanguage targetLanguage) {
         try {
-            log.info("요약 생성 시작: {} 글자", translatedText.length());
+            log.info("요약 생성 시작: {} 글자, 목표언어: {}", translatedText.length(), targetLanguage.getDisplayName());
             
             PromptTemplate promptTemplate = new PromptTemplate(SUMMARY_PROMPT_TEMPLATE);
             Prompt prompt = promptTemplate.create(Map.of(
-                    "translatedText", translatedText
+                    "translatedText", translatedText,
+                    "targetLanguage", targetLanguage.getDisplayName()
             ));
             
             String result = chatModel.call(prompt).getResult().getOutput().getContent();
