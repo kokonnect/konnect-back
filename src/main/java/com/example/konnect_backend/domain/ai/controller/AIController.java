@@ -36,16 +36,6 @@ public class AIController {
     private final TranslationService translationService;
     private final FileTranslationService fileTranslationService;
     private final GenerationService generationService;
-
-    @PostMapping("/translate/text")
-    @Operation(summary = "텍스트 번역", description = "외국어를 한국어로 번역합니다.")
-    public ResponseEntity<ApiResponse<TranslationResponse>> translate(
-            @Valid @RequestBody TranslationRequest request) {
-
-        TranslationResponse response = translationService.translate(request);
-
-        return ResponseEntity.ok(ApiResponse.onSuccess(response));
-    }
     
     @PostMapping(value = "/translate", consumes = "multipart/form-data")
     @Operation(summary = "파일 번역", description = "PDF 또는 이미지 파일의 텍스트를 추출하여 번역합니다. OpenAI Vision API를 사용합니다.")
@@ -70,17 +60,6 @@ public class AIController {
         }
     }
 
-    /*
-    @PostMapping("/generate")
-    @Operation(summary = "콘텐츠 생성", description = "AI를 사용하여 콘텐츠를 생성합니다.")
-    public ResponseEntity<ApiResponse<GenerationResponse>> generate(
-            @Valid @RequestBody GenerationRequest request) {
-
-        GenerationResponse response = generationService.generate(request);
-
-        return ResponseEntity.ok(ApiResponse.onSuccess(response));
-    }
-    */
 
     @GetMapping("/languages")
     @Operation(summary = "지원 언어 목록", description = "번역 가능한 언어 목록을 조회합니다.")
