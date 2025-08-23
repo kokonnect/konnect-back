@@ -1,29 +1,32 @@
+// src/main/java/com/example/konnect_backend/domain/auth/dto/request/SignUpRequest.java
 package com.example.konnect_backend.domain.auth.dto.request;
 
+import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.*;
+import lombok.*;
 
-@Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Schema(description = "회원가입 요청 DTO")
+import java.util.Date;
+import java.util.List;
+
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
+@Schema(description = "회원가입 요청 DTO(게스트 승격)")
 public class SignUpRequest {
 
-    @NotBlank(message = "소셜 ID는 필수입니다")
-    @Schema(description = "소셜 로그인 ID", example = "kakao_123456789")
-    private String socialId;
 
-    @NotNull(message = "Provider는 필수입니다")
-    @Schema(description = "소셜 로그인 제공자", example = "KAKAO")
-    private Provider provider;
+    @NotBlank(message = "이름은 필수입니다")
+    @Schema(description = "사용자 이름", example = "홍길동")
+    private String name;
 
-    @Schema(description = "사용자 닉네임", example = "홍길동")
-    private String nickname;
+
+    private String email;
+
+    @NotNull
+    @Schema(description = "선호 언어", example = "KOREAN")
+    private Language language;
+
+    @Size(min = 1, message = "최소 한 명의 자녀 정보가 필요합니다")
+    private List<ChildCreateDto> children;
 }
