@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -40,6 +41,12 @@ public class Schedule extends BaseEntity {
 
     private Boolean isAllDay;
     private Boolean createdFromNotice;
+    
+    @OneToOne(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    private ScheduleRepeat scheduleRepeat;
+    
+    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ScheduleAlarm> scheduleAlarms;
     
     public void update(String title, String memo, LocalDateTime startDate, 
                       LocalDateTime endDate, Boolean isAllDay, Child child) {

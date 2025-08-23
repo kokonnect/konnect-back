@@ -1,6 +1,7 @@
 package com.example.konnect_backend.domain.schedule.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -38,4 +40,12 @@ public class ScheduleUpdateRequest {
     @Schema(description = "종일 일정 여부", example = "false")
     @Builder.Default
     private Boolean isAllDay = false;
+    
+    @Valid
+    @Schema(description = "반복 설정 (선택)")
+    private ScheduleRepeatRequest repeat;
+    
+    @Valid
+    @Schema(description = "알림 설정 목록 (선택)")
+    private List<ScheduleAlarmRequest> alarms;
 }

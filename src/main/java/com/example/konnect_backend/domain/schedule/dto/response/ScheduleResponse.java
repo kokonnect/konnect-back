@@ -7,10 +7,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "일정 응답")
@@ -52,7 +54,19 @@ public class ScheduleResponse {
     @Schema(description = "수정일시", example = "2024-01-01T00:00:00")
     private LocalDateTime updatedAt;
     
+    @Schema(description = "오늘 일정 여부", example = "true")
+    private Boolean isToday;
+    
+    @Schema(description = "반복 설정")
+    private ScheduleRepeatResponse repeat;
+    
+    @Schema(description = "알림 설정 목록")
+    private List<ScheduleAlarmResponse> alarms;
+    
     public static ScheduleResponse from(Schedule schedule) {
+        LocalDate today = LocalDate.now();
+        LocalDate scheduleDate = schedule.getStartDate().toLocalDate();
+        
         return ScheduleResponse.builder()
                 .scheduleId(schedule.getScheduleId())
                 .userId(schedule.getUser().getId())
@@ -66,6 +80,17 @@ public class ScheduleResponse {
                 .createdFromNotice(schedule.getCreatedFromNotice())
                 .createdAt(schedule.getCreatedAt())
                 .updatedAt(schedule.getUpdatedAt())
+                .isToday(scheduleDate.equals(today))
+                .build();
+    }
+    
+    public static ScheduleResponse fromWithDetails(Schedule schedule, 
+                                                   ScheduleRepeatResponse repeat, 
+                                                   List<ScheduleAlarmResponse> alarms) {
+        ScheduleResponse response = from(schedule);
+        return response.toBuilder()
+                .repeat(repeat)
+                .alarms(alarms)
                 .build();
     }
 }

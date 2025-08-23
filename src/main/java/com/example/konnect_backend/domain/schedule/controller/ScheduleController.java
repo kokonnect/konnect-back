@@ -2,6 +2,7 @@ package com.example.konnect_backend.domain.schedule.controller;
 
 import com.example.konnect_backend.domain.schedule.dto.request.ScheduleCreateRequest;
 import com.example.konnect_backend.domain.schedule.dto.request.ScheduleUpdateRequest;
+import com.example.konnect_backend.domain.schedule.dto.response.CalendarDateResponse;
 import com.example.konnect_backend.domain.schedule.dto.response.ScheduleResponse;
 import com.example.konnect_backend.domain.schedule.service.ScheduleService;
 import com.example.konnect_backend.global.ApiResponse;
@@ -16,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -104,5 +106,74 @@ public class ScheduleController {
             @Parameter(description = "조회할 일정 개수", example = "5")
             @RequestParam(defaultValue = "5") int limit) {
         return ApiResponse.onSuccess(scheduleService.getRecentSchedules(limit));
+    }
+    
+    @GetMapping("/{scheduleId}")
+    @Operation(summary = "일정 상세 조회", description = "일정의 상세 정보(반복, 알림 포함)를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "권한 없음", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "일정을 찾을 수 없음", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    public ApiResponse<ScheduleResponse> getScheduleDetails(
+            @Parameter(description = "일정 ID", required = true, example = "1")
+            @PathVariable Long scheduleId) {
+        return ApiResponse.onSuccess(scheduleService.getScheduleWithDetails(scheduleId));
+    }
+    
+    @GetMapping("/daily")
+    @Operation(summary = "일별 일정 조회", description = "특정 날짜의 일정을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    public ApiResponse<List<ScheduleResponse>> getDailySchedules(
+            @Parameter(description = "조회할 날짜", required = true, example = "2024-01-15")
+            @RequestParam LocalDate date) {
+        return ApiResponse.onSuccess(scheduleService.getDailySchedules(date));
+    }
+    
+    @GetMapping("/weekly")
+    @Operation(summary = "주별 일정 조회", description = "특정 주의 일정을 조회합니다. (월요일 기준)")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    public ApiResponse<List<ScheduleResponse>> getWeeklySchedules(
+            @Parameter(description = "주의 시작 날짜", required = true, example = "2024-01-15")
+            @RequestParam LocalDate startDate) {
+        return ApiResponse.onSuccess(scheduleService.getWeeklySchedules(startDate));
+    }
+    
+    @GetMapping("/today")
+    @Operation(summary = "오늘 일정 조회", description = "오늘 날짜의 일정을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    public ApiResponse<List<ScheduleResponse>> getTodaySchedules() {
+        return ApiResponse.onSuccess(scheduleService.getTodaySchedules());
+    }
+    
+    @GetMapping("/calendar")
+    @Operation(summary = "달력용 날짜별 일정 존재 여부 조회", description = "달력에 표시할 날짜별 일정 존재 여부와 개수를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패", 
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    public ApiResponse<List<CalendarDateResponse>> getCalendarDates(
+            @Parameter(description = "연도", required = true, example = "2024")
+            @RequestParam int year,
+            @Parameter(description = "월", required = true, example = "1")
+            @RequestParam int month) {
+        return ApiResponse.onSuccess(scheduleService.getCalendarDates(year, month));
     }
 }
