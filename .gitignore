@@ -41,3 +41,10 @@ out/
 .env.local
 .env.production
 .env.staging
+
+### Gradle Properties ###
+gradle.properties
+
+### Application Properties ###
+application-*.properties
+!application.properties

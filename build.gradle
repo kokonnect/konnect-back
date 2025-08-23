@@ -13,6 +13,12 @@ java {
 	}
 }
 
+// Java 컴파일러 메모리 설정
+tasks.withType(JavaCompile) {
+	options.fork = true
+	options.forkOptions.jvmArgs = ['-Xmx2g', '-XX:MaxMetaspaceSize=512m']
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -21,30 +27,30 @@ configurations {
 
 repositories {
 	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+	maven { url 'https://repo.spring.io/snapshot' }
 }
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-mysql'
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+	
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
+	
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	implementation 'mysql:mysql-connector-java:8.0.30'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
 
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
@@ -56,11 +62,11 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5' // JSON 처리용
 
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-
+	// Spring AI OpenAI - M2 버전 사용하되 정확한 구현
+	implementation platform('org.springframework.ai:spring-ai-bom:1.0.0-M2')
+	implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+	implementation 'org.springframework.ai:spring-ai-pdf-document-reader'
+	implementation 'org.springframework.ai:spring-ai-tika-document-reader'
 }
 
 tasks.named('test') {
