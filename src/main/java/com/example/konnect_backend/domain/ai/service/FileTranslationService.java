@@ -39,16 +39,18 @@ public class FileTranslationService {
     
     
     private static final String IMAGE_OCR_PROMPT = """
-            이 이미지에 포함된 모든 텍스트를 정확하게 추출해주세요.
+            Please extract all text from this image accurately and completely.
             
-            요구사항:
-            - 이미지의 모든 텍스트를 빠짐없이 읽어주세요
-            - 텍스트의 순서와 레이아웃을 최대한 보존해주세요
-            - 한글, 영어, 숫자, 특수문자 등 모든 문자를 정확히 인식해주세요
-            - 표, 목록, 제목 등의 구조가 있다면 유지해주세요
-            - 텍스트만 반환하고 다른 설명은 추가하지 마세요
+            Requirements:
+            - Extract ALL visible text without missing anything
+            - Preserve the order and layout of text as much as possible
+            - Accurately recognize all characters including letters, numbers, and special characters in any language
+            - Maintain structure such as tables, lists, and headings if present
+            - Return ONLY the extracted text without any additional explanations, comments, or refusals
+            - Do not say "I can't" or "I'm sorry" - simply extract whatever text is visible
+            - If the image contains text in Korean, English, or any other language, extract it faithfully
             
-            추출된 텍스트:
+            Extracted text:
             """;
     
     private static final String TRANSLATION_PROMPT_TEMPLATE = """
