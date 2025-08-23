@@ -1,6 +1,7 @@
 // src/main/java/com/example/konnect_backend/domain/auth/controller/AuthController.java
 package com.example.konnect_backend.domain.auth.controller;
 
+import com.example.konnect_backend.domain.auth.dto.request.GuestTokenRequest;
 import com.example.konnect_backend.domain.auth.dto.request.SignInRequest;
 import com.example.konnect_backend.domain.auth.dto.request.SignUpRequest;
 import com.example.konnect_backend.domain.auth.dto.response.AuthResponse;
@@ -28,8 +29,8 @@ public class AuthController {
 
     @PostMapping("/guest")
     @Operation(summary = "게스트 토큰 발급", description = "게스트용 계정을 생성하고 토큰을 발급합니다(guestToken 쿠키 저장).")
-    public ApiResponse<AuthResponse> issueGuest(HttpServletResponse res) {
-        AuthResponse rsp = authService.issueGuest();
+    public ApiResponse<AuthResponse> issueGuest(@Valid @RequestBody GuestTokenRequest request, HttpServletResponse res) {
+        AuthResponse rsp = authService.issueGuest(request.getLanguage());
         // 게스트 토큰을 HttpOnly 쿠키에 저장 → OAuth 성공시 머지에 사용
         Cookie guest = new Cookie("guestToken", rsp.getAccessToken());
         guest.setHttpOnly(true);

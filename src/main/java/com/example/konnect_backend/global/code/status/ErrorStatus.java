@@ -42,6 +42,8 @@ public enum ErrorStatus implements BaseErrorCode {
     ALREADY_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 회원입니다."),
     SOCIAL_ID_DUPLICATE(HttpStatus.CONFLICT, "MEMBER4013", "이미 가입된 socialId 입니다."),
     CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "CHILD4001", "자녀를 찾을 수 없습니다."),
+    FORBIDDEN_ACCESS(HttpStatus.FORBIDDEN, "AUTH403", "접근 권한이 없습니다."),
+    SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE4001", "일정을 찾을 수 없습니다."),
 
 
     // Chat Error
