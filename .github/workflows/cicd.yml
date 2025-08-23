@@ -28,6 +28,7 @@ jobs:
           if [ -z "${{ secrets.PROD_HOST }}" ]; then echo "❌ PROD_HOST is missing"; exit 1; fi
           if [ -z "${{ secrets.PROD_USER }}" ]; then echo "❌ PROD_USER is missing"; exit 1; fi
           if [ -z "${{ secrets.DB_URL }}" ]; then echo "❌ DB_URL is missing"; exit 1; fi
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then echo "❌ OPENAI_API_KEY is missing"; exit 1; fi
           echo "✅ All required secrets are present"
 
       - name: Setup SSH
@@ -55,6 +56,7 @@ jobs:
               --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
               --server.port="${{ secrets.PROD_SERVER_PORT }}" \
               --jwt.secret="${{ secrets.JWT_SECRET }}" \
+              --spring.ai.openai.api-key="${{ secrets.OPENAI_API_KEY }}" \
               > ~/app.log 2>&1 &
             
             # Wait and check if application started
