@@ -94,10 +94,12 @@ public class WebSecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         List<String> allowedOrigins = List.of(
-                "http://localhost:8080",
+                "http://localhost:8081",
                 "http://localhost:5173",
-                "ws://localhost:8080",
-                "http://localhost:3000"
+                "ws://localhost:8081",
+                "http://localhost:3000",
+                "http://konnect-women.site",
+                "https://konnect-women.site"
         );
 
         config.setAllowedOrigins(allowedOrigins);
