@@ -40,4 +40,14 @@ public class Schedule extends BaseEntity {
 
     private Boolean isAllDay;
     private Boolean createdFromNotice;
+    
+    public void update(String title, String memo, LocalDateTime startDate, 
+                      LocalDateTime endDate, Boolean isAllDay, Child child) {
+        this.title = title;
+        this.memo = memo;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.isAllDay = isAllDay;
+        this.child = child;
+    }
 }
