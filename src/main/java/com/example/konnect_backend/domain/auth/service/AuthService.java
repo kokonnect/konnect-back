@@ -8,6 +8,7 @@ import com.example.konnect_backend.domain.auth.dto.response.AuthResponse;
 import com.example.konnect_backend.domain.user.entity.Child;
 import com.example.konnect_backend.domain.user.entity.SocialAccount;
 import com.example.konnect_backend.domain.user.entity.User;
+import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import com.example.konnect_backend.domain.user.repository.ChildRepository;
 import com.example.konnect_backend.domain.user.repository.SocialAccountRepository;
@@ -37,8 +38,11 @@ public class AuthService {
 
     /** 1) 게스트 발급: User 레코드만 만들고 guest=true + guestToken 쿠키 세팅은 컨트롤러에서 */
     @Transactional
-    public AuthResponse issueGuest() {
-        User guest = User.builder().guest(true).build();
+    public AuthResponse issueGuest(Language language) {
+        User guest = User.builder()
+                .guest(true)
+                .language(language)
+                .build();
         User saved = userRepository.save(guest);
         String token = jwtTokenProvider.createToken(saved.getId(), "GUEST");
         return AuthResponse.of(token, saved.getId(), "GUEST");
