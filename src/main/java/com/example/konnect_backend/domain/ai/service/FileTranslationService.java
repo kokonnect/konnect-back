@@ -4,8 +4,16 @@ import com.example.konnect_backend.domain.ai.dto.FileType;
 import com.example.konnect_backend.domain.ai.dto.TargetLanguage;
 import com.example.konnect_backend.domain.ai.dto.request.FileTranslationRequest;
 import com.example.konnect_backend.domain.ai.dto.response.FileTranslationResponse;
+import com.example.konnect_backend.domain.document.entity.DocumentFile;
+import com.example.konnect_backend.domain.document.entity.DocumentTranslation;
+import com.example.konnect_backend.domain.document.repository.DocumentRepository;
+import com.example.konnect_backend.domain.document.repository.DocumentFileRepository;
+import com.example.konnect_backend.domain.document.repository.DocumentTranslationRepository;
+import com.example.konnect_backend.domain.user.entity.User;
+import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
+import com.example.konnect_backend.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -20,6 +28,7 @@ import org.springframework.ai.reader.pdf.config.PdfDocumentReaderConfig;
 import org.springframework.ai.reader.ExtractedTextFormatter;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,6 +45,10 @@ public class FileTranslationService {
     private record PdfExtractionResult(String extractedText, Integer pageCount) {}
     
     private final ChatModel chatModel;
+    private final DocumentRepository documentRepository;
+    private final DocumentFileRepository documentFileRepository;
+    private final DocumentTranslationRepository documentTranslationRepository;
+    private final UserRepository userRepository;
     
     
     private static final String IMAGE_OCR_PROMPT = """
@@ -87,6 +100,7 @@ public class FileTranslationService {
             요약:
             """;
     
+    @Transactional
     public FileTranslationResponse translateFile(FileTranslationRequest request) {
         long startTime = System.currentTimeMillis();
         
@@ -127,6 +141,52 @@ public class FileTranslationService {
             
             // 3단계: 번역된 텍스트 요약
             String summary = generateSummary(translatedText, request.getTargetLanguage());
+            
+            // 4단계: DB에 저장
+            // 현재 로그인한 사용자 정보 가져오기 (게스트 포함)
+            Long userId = SecurityUtil.getCurrentUserIdOrNull();
+            User user = null;
+            
+            if (userId != null) {
+                user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    log.info("사용자 정보 확인: userId={}, isGuest={}", userId, user.isGuest());
+                }
+            }
+            
+            // Document 엔티티 생성 및 저장
+            com.example.konnect_backend.domain.document.entity.Document document = null;
+            if (user != null) {
+                document = com.example.konnect_backend.domain.document.entity.Document.builder()
+                        .user(user)
+                        .title(request.getFile().getOriginalFilename())
+                        .description("파일 번역: " + request.getTargetLanguage().getDisplayName())
+                        .build();
+                
+                // DocumentFile 엔티티 생성
+                DocumentFile documentFile = DocumentFile.builder()
+                        .fileName(request.getFile().getOriginalFilename())
+                        .fileType(request.getFileType().name())
+                        .fileSize(request.getFile().getSize())
+                        .extractedText(extractedText)
+                        .pageCount(pageCount != null ? pageCount : 1)
+                        .build();
+                
+                // DocumentTranslation 엔티티 생성
+                DocumentTranslation documentTranslation = DocumentTranslation.builder()
+                        .translatedLanguage(request.getTargetLanguage().getLanguageCode())
+                        .translatedText(translatedText)
+                        .summary(summary)
+                        .build();
+                
+                // 관계 설정
+                document.addDocumentFile(documentFile);
+                document.addTranslation(documentTranslation);
+                
+                // 저장
+                document = documentRepository.save(document);
+                log.info("문서 저장 완료: documentId={}", document.getId());
+            }
             
             long endTime = System.currentTimeMillis();
             long processingTime = endTime - startTime;
