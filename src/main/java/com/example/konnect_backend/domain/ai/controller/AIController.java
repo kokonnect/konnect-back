@@ -7,6 +7,7 @@ import com.example.konnect_backend.global.ApiResponse;
 import com.example.konnect_backend.domain.ai.dto.response.GenerationResponse;
 import com.example.konnect_backend.domain.ai.dto.response.FileTranslationResponse;
 import com.example.konnect_backend.domain.ai.dto.response.TranslationResponse;
+import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
 import com.example.konnect_backend.domain.ai.service.GenerationService;
 import com.example.konnect_backend.domain.ai.service.FileTranslationService;
 import com.example.konnect_backend.domain.ai.service.TranslationService;
@@ -79,5 +80,20 @@ public class AIController {
         );
 
         return ResponseEntity.ok(ApiResponse.onSuccess(result));
+    }
+    
+    @GetMapping("/translate/history")
+    @Operation(summary = "번역 내역 조회", description = "사용자의 최근 번역 내역을 최대 10개까지 조회합니다.")
+    public ResponseEntity<ApiResponse<TranslationHistoryResponse>> getTranslationHistory() {
+        
+        try {
+            TranslationHistoryResponse response = fileTranslationService.getTranslationHistory();
+            
+            return ResponseEntity.ok(ApiResponse.onSuccess(response));
+            
+        } catch (Exception e) {
+            log.error("번역 내역 조회 API 오류: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 }
