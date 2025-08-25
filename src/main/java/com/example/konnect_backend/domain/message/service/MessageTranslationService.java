@@ -83,17 +83,7 @@ public class MessageTranslationService {
     }
     
     private String determineTargetLanguage(MessageComposeRequest request, User user) {
-        // 1. 요청에 명시된 언어가 있으면 우선 사용
-        if (request.getTargetLanguage() != null && !request.getTargetLanguage().trim().isEmpty()) {
-            return request.getTargetLanguage().toLowerCase();
-        }
-        
-        // 2. 사용자 설정 언어 사용
-        if (user != null && user.getLanguage() != null) {
-            return convertLanguageEnumToCode(user.getLanguage());
-        }
-        
-        // 3. 기본값: 한국어
+        // 무조건 한국어로 번역
         return "ko";
     }
     
