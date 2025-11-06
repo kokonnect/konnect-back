@@ -41,6 +41,7 @@ out/
 .env.local
 .env.production
 .env.staging
+.secrets
 
 ### Gradle Properties ###
 gradle.properties

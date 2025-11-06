@@ -1,0 +1,21 @@
+{
+  "pull_request": {
+    "number": 999,
+    "title": "[TEST] act로 테스트하는 PR",
+    "body": "act 로컬 테스트용 PR입니다.",
+    "base": {
+      "ref": "main"
+    },
+    "head": {
+      "ref": "test-branch",
+      "sha": "e044d56109f70e1184d32839203cdbae2136975b"
+    },
+    "draft": false
+  },
+  "repository": {
+    "name": "konnect-backend",
+    "owner": {
+      "login": "kokonnect"
+    }
+  }
+}
