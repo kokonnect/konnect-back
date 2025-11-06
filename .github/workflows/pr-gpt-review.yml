@@ -1,0 +1,108 @@
+# .github/workflows/pr-gpt-review.yml
+name: PR GPT Review
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: ${{ !github.event.pull_request.draft }} # 드래프트 PR은 스킵
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ 리포 checkout (전체 히스토리 필요)
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ diff 안전하게 생성
+      - name: Build unified diff (robust)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_REF="${{ github.event.pull_request.base.ref || 'main' }}"
+          HEAD_REF="${{ github.event.pull_request.head.ref || '' }}"
+
+          # 모든 원격 브랜치 fetch
+          git fetch --no-tags --prune origin "+refs/heads/*:refs/remotes/origin/*" \
+                                     "+refs/pull/*:refs/remotes/pull/*"
+
+          HEAD_SHA=$(git rev-parse HEAD)
+          if git rev-parse --verify "origin/${BASE_REF}" >/dev/null 2>&1; then
+            BASE_REMOTE="origin/${BASE_REF}"
+          else
+            BASE_REMOTE="origin/main"
+          fi
+
+          BASE_SHA=$(git merge-base "${BASE_REMOTE}" "${HEAD_SHA}")
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+
+          git diff -U0 --no-color "${BASE_SHA}" "${HEAD_SHA}" > diff.patch
+          head -c 200000 diff.patch > diff.patch  # 토큰 절약
+
+      # 3️⃣ GPT 호출 및 리뷰 코멘트 달기
+      - name: GPT review & comment
+        uses: actions/github-script@v7
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4o-mini
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            const diff = fs.readFileSync('diff.patch','utf8');
+            const system = `
+            너는 근거 중심의 시니어 코드리뷰어다.
+            모든 지적에 label(blocker/major/minor/nit), file, line, evidence, suggestion을 포함해라.
+            보안, 계약, 예외, 성능, 테스트 공백을 우선 확인하고 JSON으로만 응답하라.
+            `;
+            const user = `
+            PR #${context.payload.pull_request.number} (${context.repo.owner}/${context.repo.repo})
+            Title: ${context.payload.pull_request.title}
+            Description: ${context.payload.pull_request.body || '(no body)'}
+            [DIFF unified]
+            ${diff}
+            스키마:
+            {"summary":"","decision":"approve|request-changes","findings":[{"label":"","file":"","line":0,"title":"","evidence":"","suggestion":""}],"tests_to_add":[]}
+            `;
+
+            const body = {
+              model: process.env.OPENAI_MODEL,
+              temperature: 0,
+              response_format: { type: "json_object" },
+              messages: [{ role: "system", content: system }, { role: "user", content: user }]
+            };
+
+            const r = await fetch("https://api.openai.com/v1/chat/completions", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+            const j = await r.json();
+
+            let data;
+            try { data = JSON.parse(j.choices[0].message.content); }
+            catch { data = { summary: "파싱 실패", decision: "request-changes", findings: [], tests_to_add: [] }; }
+
+            const findings = (data.findings||[]).map(f =>
+              `- **[${f.label}]** \`${f.file}:${f.line}\` — ${f.title}\n  - 근거: ${f.evidence}\n  - 제안: ${f.suggestion}`
+            ).join('\n') || '_지적 없음_';
+
+            const comment =
+              `### 🤖 GPT PR Review\n` +
+              `**결론:** ${data.decision}\n\n` +
+              `**요약:** ${data.summary}\n\n` +
+              `#### 주요 지적\n${findings}` +
+              (data.tests_to_add?.length ? `\n\n#### 제안 테스트\n- ${data.tests_to_add.join('\n- ')}` : '');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: comment
+            });
