@@ -70,6 +70,11 @@ dependencies {
 	
 	// Jackson JSR310 module for LocalDateTime support
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+	implementation 'io.swagger.core.v3:swagger-annotations:2.2.21'
+	implementation 'io.swagger.core.v3:swagger-models:2.2.21'
+
+
 }
 
 tasks.named('test') {

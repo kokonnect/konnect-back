@@ -44,8 +44,9 @@ public class AuthService {
                 .language(language)
                 .build();
         User saved = userRepository.save(guest);
-        String token = jwtTokenProvider.createToken(saved.getId(), "GUEST");
-        return AuthResponse.of(token, saved.getId(), "GUEST");
+        String accessToken = jwtTokenProvider.createToken(saved.getId(), "GUEST");
+        String refreshToken = jwtTokenProvider.createRefreshToken(saved.getId());
+        return AuthResponse.of(accessToken, refreshToken, saved.getId(), "GUEST");
     }
 
     /** 2) 회원가입(승격): 현재 토큰의 userId(게스트)를 정식 회원으로 승격 + Child 생성 */
@@ -78,8 +79,9 @@ public class AuthService {
             }
         }
 
-        String access = jwtTokenProvider.createToken(u.getId(), "USER");
-        return AuthResponse.of(access, u.getId(), "USER");
+        String accessToken = jwtTokenProvider.createToken(u.getId(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(u.getId());
+        return AuthResponse.of(accessToken, refreshToken, u.getId(), "USER");
     }
 
     /**
@@ -127,8 +129,9 @@ public class AuthService {
 
 
 
-        String access = jwtTokenProvider.createToken(base.getId(), "USER");
-        return AuthResponse.of(access, base.getId(), "USER");
+        String accessToken = jwtTokenProvider.createToken(base.getId(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(base.getId());
+        return AuthResponse.of(accessToken, refreshToken, base.getId(), "USER");
     }
 
     @Transactional
@@ -156,8 +159,31 @@ public class AuthService {
         guest.upgradeToUser();
         userRepository.save(guest);
 
-        String access = jwtTokenProvider.createToken(guest.getId(), "USER");
-        return AuthResponse.of(access, guest.getId(), "USER");
+        String accessToken = jwtTokenProvider.createToken(guest.getId(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(guest.getId());
+        return AuthResponse.of(accessToken, refreshToken, guest.getId(), "USER");
+    }
+
+    /**
+     * 토큰 재발급: Refresh Token으로 새로운 Access Token 발급
+     */
+    @Transactional
+    public AuthResponse refreshToken(String refreshToken) {
+        // Refresh Token 유효성 검증
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
+            throw new GeneralException(ErrorStatus.INVALID_REFRESH_TOKEN);
+        }
+
+        // userId 추출
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        // 새로운 토큰 발급
+        String newAccessToken = jwtTokenProvider.createToken(user.getId(), user.isGuest() ? "GUEST" : "USER");
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+        return AuthResponse.of(newAccessToken, newRefreshToken, user.getId(), user.isGuest() ? "GUEST" : "USER");
     }
 
 

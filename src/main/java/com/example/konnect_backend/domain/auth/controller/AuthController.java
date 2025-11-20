@@ -2,6 +2,7 @@
 package com.example.konnect_backend.domain.auth.controller;
 
 import com.example.konnect_backend.domain.auth.dto.request.GuestTokenRequest;
+import com.example.konnect_backend.domain.auth.dto.request.RefreshTokenRequest;
 import com.example.konnect_backend.domain.auth.dto.request.SignInRequest;
 import com.example.konnect_backend.domain.auth.dto.request.SignUpRequest;
 import com.example.konnect_backend.domain.auth.dto.response.AuthResponse;
@@ -75,5 +76,19 @@ public class AuthController {
         return ApiResponse.onSuccess(
                 authService.socialLogin(guestToken, provider, providerUserId)
         );
+    }
+
+    /**
+     * 토큰 재발급 API
+     */
+    @PostMapping("/refresh")
+    @Operation(summary = "토큰 재발급", description = "Refresh Token으로 새로운 Access Token과 Refresh Token을 발급받습니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "COMMON200", description = "OK, 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "COMMON400", description = "잘못된 요청입니다.", content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "COMMON406", description = "유효하지 않은 Refresh Token입니다.", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
+    public ApiResponse<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return ApiResponse.onSuccess(authService.refreshToken(request.getRefreshToken()));
     }
 }

@@ -11,14 +11,29 @@ import lombok.*;
 public class AuthResponse {
     @Schema(description = "JWT 액세스 토큰")
     private String accessToken;
+
+    @Schema(description = "Refresh Token")
+    private String refreshToken;
+
     @Schema(description = "토큰 타입", example = "Bearer")
     private String tokenType;
+
     private Long userId;
     private String role;     // GUEST or USER
 
     public static AuthResponse of(String accessToken, Long userId, String role) {
         return AuthResponse.builder()
                 .accessToken(accessToken)
+                .tokenType("Bearer")
+                .userId(userId)
+                .role(role)
+                .build();
+    }
+
+    public static AuthResponse of(String accessToken, String refreshToken, Long userId, String role) {
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .userId(userId)
                 .role(role)
