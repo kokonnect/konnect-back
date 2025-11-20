@@ -21,13 +21,16 @@ public class JwtTokenProvider {
 
     private final SecretKey key;
     private final long validityInMilliseconds;
+    private final long refreshValidityInMilliseconds;
 
     public JwtTokenProvider(
             @Value("${jwt.secret:defaultSecretKeyForDevelopmentPurposeOnly12345678}") String secretKey,
-            @Value("${jwt.token-validity-in-seconds:86400}") long validityInSeconds
+            @Value("${jwt.token-validity-in-seconds:86400}") long validityInSeconds,
+            @Value("${jwt.refresh-token-validity-in-seconds:604800}") long refreshValidityInSeconds
     ) {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
         this.validityInMilliseconds = validityInSeconds * 1000;
+        this.refreshValidityInMilliseconds = refreshValidityInSeconds * 1000; // 기본 7일
     }
 
     /** ✅ 새 방식: userId + role(GUEST/USER) 을 토큰에 넣기 */
@@ -38,6 +41,21 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))   // sub = userId
                 .claim("role", role)                  // "GUEST" or "USER"
+                .claim("type", "access")              // 토큰 타입
+                .setIssuedAt(now)
+                .setExpiration(exp)
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /** ✅ Refresh Token 생성 */
+    public String createRefreshToken(Long userId) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + refreshValidityInMilliseconds);
+
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))   // sub = userId
+                .claim("type", "refresh")             // 토큰 타입
                 .setIssuedAt(now)
                 .setExpiration(exp)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -79,6 +97,18 @@ public class JwtTokenProvider {
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             log.error("Invalid JWT token: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /** ✅ Refresh Token 유효성 검증 */
+    public boolean validateRefreshToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+            String type = claims.get("type", String.class);
+            return "refresh".equals(type);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Invalid Refresh token: {}", e.getMessage());
             return false;
         }
     }

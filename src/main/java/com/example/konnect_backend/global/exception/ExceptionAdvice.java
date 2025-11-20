@@ -65,6 +65,24 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     }
 
 
+    @ExceptionHandler(value = io.jsonwebtoken.JwtException.class)
+    public ResponseEntity onJwtException(io.jsonwebtoken.JwtException jwtException, HttpServletRequest request) {
+        ErrorStatus errorStatus;
+
+        if (jwtException instanceof io.jsonwebtoken.ExpiredJwtException) {
+            errorStatus = ErrorStatus.JWT_EXPIRED;
+        } else if (jwtException instanceof io.jsonwebtoken.MalformedJwtException) {
+            errorStatus = ErrorStatus.JWT_MALFORMED;
+        } else if (jwtException instanceof io.jsonwebtoken.security.SignatureException) {
+            errorStatus = ErrorStatus.JWT_SIGNATURE_INVALID;
+        } else {
+            errorStatus = ErrorStatus._UNAUTHORIZED;
+        }
+
+        ErrorReasonDTO errorReason = errorStatus.getReasonHttpStatus();
+        return handleExceptionInternal(jwtException, errorReason, null, request);
+    }
+
     @ExceptionHandler
     public ResponseEntity<Object> exception(Exception e, WebRequest request) {
         e.printStackTrace();
