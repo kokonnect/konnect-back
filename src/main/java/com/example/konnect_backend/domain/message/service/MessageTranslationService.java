@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.message.service;
 
+import com.example.konnect_backend.domain.ai.service.GeminiService;
 import com.example.konnect_backend.domain.message.dto.request.MessageComposeRequest;
 import com.example.konnect_backend.domain.message.dto.response.MessageComposeResponse;
 import com.example.konnect_backend.domain.message.dto.response.MessageHistoryResponse;
@@ -13,46 +14,50 @@ import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 메시지 번역 서비스 (Gemini API 사용)
+ *
+ * ## 모델 선택: gemini-2.0-flash-lite
+ * - 이유: 메시지 번역은 단순한 텍스트 변환 작업
+ * - RPD: 1,000회/일로 여유로움
+ * - 빠른 응답 속도, 비용 효율적
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MessageTranslationService {
 
-    private final ChatModel chatModel;
+    private final GeminiService geminiService;
     private final UserRepository userRepository;
     private final UserGeneratedMessageRepository userGeneratedMessageRepository;
-    
+
     private static final String MESSAGE_TRANSLATION_PROMPT_TEMPLATE = """
-            다음 메시지를 {targetLanguage}로 번역해주세요.
-            
+            다음 메시지를 %s로 번역해주세요.
+
             원본 메시지:
-            {message}
-            
+            %s
+
             번역 지침:
             - 자연스럽고 정확한 번역을 해주세요
             - 메시지의 톤과 의도를 유지해주세요
             - 문맥과 의미를 충분히 고려해주세요
             - 번역문만 출력하고 다른 설명은 하지 마세요
-            
+
             번역 결과:
             """;
-    
+
     @Transactional
     public MessageComposeResponse translateMessage(MessageComposeRequest request) {
         long startTime = System.currentTimeMillis();
 
         try {
-            log.info("메시지 번역 시작: 메시지 길이={}", request.getMessage().length());
+            log.info("메시지 번역 시작 (Gemini Lite): 메시지 길이={}", request.getMessage().length());
 
             // 현재 로그인한 사용자 정보 가져오기 (게스트 사용자 포함)
             Long userId = SecurityUtil.getCurrentUserIdOrNull();
@@ -140,7 +145,7 @@ public class MessageTranslationService {
         // 무조건 한국어로 번역
         return "ko";
     }
-    
+
     private String convertLanguageEnumToCode(Language language) {
         return switch (language) {
             case KOREAN -> "ko";
@@ -153,7 +158,7 @@ public class MessageTranslationService {
             case KHMER -> "km";
         };
     }
-    
+
     private String getLanguageDisplayName(String languageCode) {
         return switch (languageCode.toLowerCase()) {
             case "ko" -> "한국어";
@@ -167,24 +172,26 @@ public class MessageTranslationService {
             default -> "한국어";
         };
     }
-    
+
+    /**
+     * 텍스트 번역 (Gemini Lite 모델 사용)
+     */
     private String translateText(String message, String targetLanguage) {
         try {
-            PromptTemplate promptTemplate = new PromptTemplate(MESSAGE_TRANSLATION_PROMPT_TEMPLATE);
-            Prompt prompt = promptTemplate.create(Map.of(
-                    "message", message,
-                    "targetLanguage", targetLanguage
-            ));
-            
-            String result = chatModel.call(prompt).getResult().getOutput().getContent();
-            
+            String prompt = String.format(MESSAGE_TRANSLATION_PROMPT_TEMPLATE,
+                    targetLanguage,
+                    message);
+
+            // Gemini Lite 모델 사용 (단순 번역)
+            String result = geminiService.generateSimpleContent(prompt, 0.3, 2000);
+
             if (result == null || result.trim().isEmpty()) {
                 log.error("메시지 번역 결과가 비어있음");
                 throw new GeneralException(ErrorStatus.TRANSLATION_FAILED);
             }
-            
+
             return result.trim();
-            
+
         } catch (Exception e) {
             log.error("메시지 번역 중 오류 발생", e);
             throw new GeneralException(ErrorStatus.TRANSLATION_FAILED);

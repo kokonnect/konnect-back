@@ -46,7 +46,16 @@ public class WebSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico").permitAll()
-                        .requestMatchers("/swagger", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // Swagger UI 관련 모든 경로 허용
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/swagger-ui/index.html",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/ws/**", "/ws/**").permitAll()
                         .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()

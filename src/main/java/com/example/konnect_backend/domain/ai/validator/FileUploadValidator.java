@@ -8,18 +8,18 @@ import java.util.List;
 
 @Component
 public class FileUploadValidator {
-    
-    // OpenAI Vision API에서 지원하는 이미지 파일 확장자
+
+    // 지원하는 이미지 파일 확장자
     private static final List<String> SUPPORTED_IMAGE_EXTENSIONS = Arrays.asList(
         "jpg", "jpeg", "png", "gif", "webp"
     );
-    
-    // OpenAI에서 지원하는 문서 파일 확장자
+
+    // 지원하는 문서 파일 확장자
     private static final List<String> SUPPORTED_DOCUMENT_EXTENSIONS = Arrays.asList(
         "pdf"
     );
-    
-    // OpenAI API 최대 파일 크기 (20MB)
+
+    // 최대 파일 크기 (20MB)
     private static final long MAX_FILE_SIZE = 20 * 1024 * 1024;
     
     public void validateFile(MultipartFile file) {

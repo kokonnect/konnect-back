@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.schedule.entity;
 
+import com.example.konnect_backend.domain.document.entity.DocumentAnalysis;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.Child;
 import com.example.konnect_backend.global.common.BaseEntity;
@@ -30,6 +31,10 @@ public class Schedule extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "child_id")
     private Child child;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "document_analysis_id")
+    private DocumentAnalysis documentAnalysis;
 
     private String title;
 
