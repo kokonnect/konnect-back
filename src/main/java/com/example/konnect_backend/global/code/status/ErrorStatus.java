@@ -81,7 +81,18 @@ public enum ErrorStatus implements BaseErrorCode {
     
     // AI Service Errors
     GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4001", "콘텐츠 생성 중 오류가 발생했습니다."),
-    TTS_CONVERSION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4002", "음성 변환 중 오류가 발생했습니다.");
+    TTS_CONVERSION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4002", "음성 변환 중 오류가 발생했습니다."),
+    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI4003", "AI 서비스를 사용할 수 없습니다. 일일 호출 제한에 도달했을 수 있습니다."),
+
+    // Document Analysis Errors
+    DOCUMENT_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DOC4001", "문서 분석 중 오류가 발생했습니다."),
+    OCR_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DOC4002", "텍스트 추출(OCR) 중 오류가 발생했습니다."),
+    CLASSIFICATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DOC4003", "문서 분류 중 오류가 발생했습니다."),
+    SCHEDULE_EXTRACTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DOC4004", "일정 추출 중 오류가 발생했습니다."),
+    GOOGLE_VISION_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "DOC4005", "Google Vision API 오류가 발생했습니다."),
+    PDF_PROCESSING_FAILED(HttpStatus.BAD_REQUEST, "DOC4006", "PDF 처리 중 오류가 발생했습니다."),
+    DOCUMENT_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "DOC4007", "문서 분석 결과를 찾을 수 없습니다."),
+    ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "DOC4008", "재시도할 분석 세션을 찾을 수 없습니다. 캐시가 만료되었을 수 있습니다.");
 
 
 

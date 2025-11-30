@@ -49,3 +49,7 @@ gradle.properties
 ### Application Properties ###
 application-*.properties
 !application.properties
+
+# Google Vision API key
+src/main/resources/google-key.json
+google-key.json
