@@ -444,14 +444,14 @@ public class DocumentAnalysisPipeline {
         return translatedText;
     }
 
-    private String executeSummarization(String translatedText, PipelineContext context) {
+    private String executeSummarization(String simplifiedKorean, PipelineContext context) {
         if (context.getCompletedStage().ordinal() >= PipelineContext.PipelineStage.SUMMARIZED.ordinal()
                 && context.getSummary() != null) {
             log.debug("요약 단계 스킵 (이미 완료)");
             return context.getSummary();
         }
 
-        String summary = summarizerModule.process(translatedText, context);
+        String summary = summarizerModule.process(simplifiedKorean, context);
         context.setSummary(summary);
         context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
         return summary;

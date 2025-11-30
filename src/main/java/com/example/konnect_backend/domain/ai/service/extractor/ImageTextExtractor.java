@@ -14,8 +14,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ImageTextExtractor implements TextExtractorService {
 
-    private static final String OCR_METHOD = "TESSERACT";
-
     private final OcrService ocrService;
 
     @Override
@@ -36,8 +34,9 @@ public class ImageTextExtractor implements TextExtractorService {
                 return TextExtractionResult.failure("이미지에서 텍스트를 추출할 수 없습니다");
             }
 
-            log.info("이미지 텍스트 추출 완료: {} 글자", extractedText.length());
-            return TextExtractionResult.success(extractedText, OCR_METHOD, 1);
+            String ocrMethod = ocrService.getServiceName();
+            log.info("이미지 텍스트 추출 완료: {} 글자, OCR: {}", extractedText.length(), ocrMethod);
+            return TextExtractionResult.success(extractedText, ocrMethod, 1);
 
         } catch (TextExtractionException e) {
             throw e;

@@ -8,6 +8,8 @@ import com.example.konnect_backend.domain.ai.dto.response.FileTranslationRespons
 import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
 import com.example.konnect_backend.domain.ai.service.FileTranslationService;
 import com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline;
+import com.example.konnect_backend.global.exception.GeneralException;
+import com.example.konnect_backend.global.code.status.ErrorStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +34,39 @@ public class AIController {
 
     private final FileTranslationService fileTranslationService;
     private final DocumentAnalysisPipeline documentAnalysisPipeline;
-    
+
+    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
+    /**
+     * 파일 입력값 검증
+     */
+    private void validateFileInput(MultipartFile file, FileType fileType) {
+        if (file == null || file.isEmpty()) {
+            throw new GeneralException(ErrorStatus.FILE_EMPTY);
+        }
+
+        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
+            throw new GeneralException(ErrorStatus.FILE_NAME_MISSING);
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new GeneralException(ErrorStatus.FILE_SIZE_EXCEEDED);
+        }
+
+        if (fileType == null) {
+            throw new GeneralException(ErrorStatus.UNSUPPORTED_FILE_TYPE);
+        }
+
+        String contentType = file.getContentType();
+        if (fileType == FileType.PDF && !"application/pdf".equals(contentType)) {
+            throw new GeneralException(ErrorStatus.INVALID_PDF_FILE);
+        }
+
+        if (fileType == FileType.IMAGE && (contentType == null || !contentType.startsWith("image/"))) {
+            throw new GeneralException(ErrorStatus.INVALID_IMAGE_FILE);
+        }
+    }
+
     @PostMapping(value = "/translate", consumes = "multipart/form-data")
     @Operation(summary = "파일 번역", description = "PDF 또는 이미지 파일의 텍스트를 추출하여 번역합니다.")
     public ResponseEntity<ApiResponse<FileTranslationResponse>> translateFile(
@@ -41,6 +75,8 @@ public class AIController {
             @RequestParam("targetLanguage") TargetLanguage targetLanguage,
             @RequestParam(value = "useSimpleLanguage", defaultValue = "true") Boolean useSimpleLanguage,
             @RequestParam(value = "sourceLanguageHint", required = false) String sourceLanguageHint) {
+
+        validateFileInput(file, fileType);
 
         try {
             FileTranslationRequest request = new FileTranslationRequest(
@@ -100,6 +136,8 @@ public class AIController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("fileType") FileType fileType) {
 
+        validateFileInput(file, fileType);
+
         log.info("문서 분석 API 요청: {}, 타입: {}", file.getOriginalFilename(), fileType);
 
         DocumentAnalysisResponse response = documentAnalysisPipeline.analyze(file, fileType);
@@ -116,6 +154,8 @@ public class AIController {
             @RequestParam("analysisId") Long analysisId,
             @RequestParam("file") MultipartFile file,
             @RequestParam("fileType") FileType fileType) {
+
+        validateFileInput(file, fileType);
 
         log.info("문서 분석 재시도 API 요청: analysisId={}, 파일={}", analysisId, file.getOriginalFilename());
 
