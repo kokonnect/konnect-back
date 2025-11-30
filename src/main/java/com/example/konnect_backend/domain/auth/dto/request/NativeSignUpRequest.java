@@ -4,7 +4,7 @@ import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;  // Provider는 Enum이므로 @NotNull 유지
 import lombok.*;
 
 @Getter
@@ -15,7 +15,7 @@ import lombok.*;
 @Schema(description = "네이티브 앱 회원가입 요청 DTO")
 public class NativeSignUpRequest {
 
-    @NotNull(message = "소셜 제공자 사용자 ID는 필수입니다")
+    @NotBlank(message = "소셜 제공자 사용자 ID는 필수입니다")
     @Schema(description = "소셜 플랫폼 사용자 고유 ID (카카오=id, 구글=sub)", example = "1234567890")
     private String providerUserId;
 

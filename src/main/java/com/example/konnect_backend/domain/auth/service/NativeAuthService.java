@@ -94,7 +94,14 @@ public class NativeAuthService {
             throw new GeneralException(ErrorStatus.SOCIAL_ACCOUNT_ALREADY_EXISTS);
         }
 
-        // 2. User 생성
+        // 2. 이메일 중복 확인 (이메일이 제공된 경우)
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                throw new GeneralException(ErrorStatus.EMAIL_DUPLICATE);
+            }
+        }
+
+        // 3. User 생성
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -103,7 +110,7 @@ public class NativeAuthService {
                 .build();
         user = userRepository.save(user);
 
-        // 3. SocialAccount 생성 및 연결
+        // 4. SocialAccount 생성 및 연결
         SocialAccount socialAccount = SocialAccount.builder()
                 .user(user)
                 .provider(provider)
@@ -111,10 +118,10 @@ public class NativeAuthService {
                 .build();
         socialAccountRepository.save(socialAccount);
 
-        // 4. 게스트 데이터 병합 (선택)
+        // 5. 게스트 데이터 병합 (선택)
         mergeGuestDataIfPresent(request.getGuestToken(), user);
 
-        // 5. JWT 발급
+        // 6. JWT 발급
         String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 

@@ -89,7 +89,10 @@ public class NativeOAuthService {
 
         } catch (HttpClientErrorException e) {
             log.error("카카오 API 호출 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new GeneralException(ErrorStatus.OAUTH_TOKEN_INVALID);
+            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+                throw new GeneralException(ErrorStatus.OAUTH_TOKEN_INVALID);
+            }
+            throw new GeneralException(ErrorStatus.OAUTH_USER_INFO_FAILED);
         } catch (Exception e) {
             log.error("카카오 사용자 정보 조회 중 오류 발생", e);
             throw new GeneralException(ErrorStatus.OAUTH_USER_INFO_FAILED);
@@ -137,7 +140,10 @@ public class NativeOAuthService {
 
         } catch (HttpClientErrorException e) {
             log.error("구글 API 호출 실패: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new GeneralException(ErrorStatus.OAUTH_TOKEN_INVALID);
+            if (e.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+                throw new GeneralException(ErrorStatus.OAUTH_TOKEN_INVALID);
+            }
+            throw new GeneralException(ErrorStatus.OAUTH_USER_INFO_FAILED);
         } catch (Exception e) {
             log.error("구글 사용자 정보 조회 중 오류 발생", e);
             throw new GeneralException(ErrorStatus.OAUTH_USER_INFO_FAILED);

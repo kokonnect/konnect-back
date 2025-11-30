@@ -11,7 +11,9 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/schools")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "School", description = "학교 정보 조회 API")
 public class SchoolController {
 
@@ -82,7 +85,7 @@ public class SchoolController {
     })
     public ApiResponse<List<RegionResponse>> getSggList(
             @Parameter(description = "시도 코드", example = "11", required = true)
-            @RequestParam String sidoCode
+            @RequestParam @NotBlank(message = "시도 코드는 필수입니다") String sidoCode
     ) {
         return ApiResponse.onSuccess(schoolService.getSggList(sidoCode));
     }
@@ -112,9 +115,9 @@ public class SchoolController {
     })
     public ApiResponse<SchoolListResponse> getElementarySchools(
             @Parameter(description = "시도 코드", example = "11", required = true)
-            @RequestParam String sidoCode,
+            @RequestParam @NotBlank(message = "시도 코드는 필수입니다") String sidoCode,
             @Parameter(description = "시군구 코드", example = "11110", required = true)
-            @RequestParam String sggCode
+            @RequestParam @NotBlank(message = "시군구 코드는 필수입니다") String sggCode
     ) {
         return ApiResponse.onSuccess(schoolService.getElementarySchools(sidoCode, sggCode));
     }
@@ -141,11 +144,11 @@ public class SchoolController {
     })
     public ApiResponse<SchoolListResponse> getSchools(
             @Parameter(description = "시도 코드", example = "11", required = true)
-            @RequestParam String sidoCode,
+            @RequestParam @NotBlank(message = "시도 코드는 필수입니다") String sidoCode,
             @Parameter(description = "시군구 코드", example = "11110", required = true)
-            @RequestParam String sggCode,
+            @RequestParam @NotBlank(message = "시군구 코드는 필수입니다") String sggCode,
             @Parameter(description = "학교급 코드 (02:초등, 03:중등, 04:고등)", example = "02", required = true)
-            @RequestParam String schulKndCode
+            @RequestParam @NotBlank(message = "학교급 코드는 필수입니다") String schulKndCode
     ) {
         return ApiResponse.onSuccess(schoolService.getSchools(sidoCode, sggCode, schulKndCode));
     }

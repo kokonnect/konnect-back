@@ -147,6 +147,9 @@ public class SchoolService {
     }
 
     private String getSchoolKindName(String code) {
+        if (code == null) {
+            return "";
+        }
         return switch (code) {
             case "02" -> "초등학교";
             case "03" -> "중학교";

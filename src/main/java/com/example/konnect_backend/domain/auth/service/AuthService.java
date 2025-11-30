@@ -45,7 +45,6 @@ public class AuthService {
      * 토큰 재발급
      * - Refresh Token으로 새로운 Access Token과 Refresh Token 발급
      */
-    @Transactional
     public AuthResponse refreshToken(String refreshToken) {
         if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
             throw new GeneralException(ErrorStatus.INVALID_REFRESH_TOKEN);
