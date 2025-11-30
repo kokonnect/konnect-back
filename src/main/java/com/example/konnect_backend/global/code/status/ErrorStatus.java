@@ -98,7 +98,11 @@ public enum ErrorStatus implements BaseErrorCode {
     OAUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "OAUTH4001", "유효하지 않은 소셜 액세스 토큰입니다."),
     OAUTH_USER_INFO_FAILED(HttpStatus.BAD_REQUEST, "OAUTH4002", "소셜 사용자 정보를 가져오는데 실패했습니다."),
     UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "OAUTH4003", "지원하지 않는 OAuth 제공자입니다."),
-    SOCIAL_ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OAUTH4004", "이미 가입된 소셜 계정입니다.");
+    SOCIAL_ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OAUTH4004", "이미 가입된 소셜 계정입니다."),
+
+    // School API Errors
+    SCHOOL_API_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SCHOOL5001", "학교 정보 조회에 실패했습니다."),
+    INVALID_REGION_CODE(HttpStatus.BAD_REQUEST, "SCHOOL4001", "유효하지 않은 지역 코드입니다.");
 
 
 

@@ -100,8 +100,13 @@ public class NativeAuthController {
                     - providerUserId: 소셜 로그인 시 받은 ID
                     - provider: KAKAO 또는 GOOGLE
                     - name: 사용자 이름
+
+                    **선택 정보:**
+                    - email: 이메일
                     - language: 선호 언어
-                    - children: 자녀 정보 (최소 1명)
+                    - guestToken: 게스트 토큰 (데이터 병합용)
+
+                    ※ 자녀 추가는 별도 API를 사용하세요.
                     """
     )
     @ApiResponses(value = {

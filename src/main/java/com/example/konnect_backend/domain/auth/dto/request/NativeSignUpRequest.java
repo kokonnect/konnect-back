@@ -5,10 +5,7 @@ import com.example.konnect_backend.domain.user.entity.status.Provider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.*;
-
-import java.util.List;
 
 @Getter
 @Setter
@@ -33,14 +30,9 @@ public class NativeSignUpRequest {
     @Schema(description = "이메일 주소", example = "user@example.com")
     private String email;
 
-    @NotNull(message = "언어 설정은 필수입니다")
     @Schema(description = "선호 언어", example = "KOREAN")
     private Language language;
 
     @Schema(description = "게스트 액세스 토큰 (선택, 게스트 데이터 병합용)")
-    private String guestAccessToken;
-
-    @Size(min = 1, message = "최소 한 명의 자녀 정보가 필요합니다")
-    @Schema(description = "자녀 정보 목록")
-    private List<ChildCreateDto> children;
+    private String guestToken;
 }

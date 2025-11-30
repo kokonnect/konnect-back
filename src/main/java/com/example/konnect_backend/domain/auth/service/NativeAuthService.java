@@ -2,15 +2,12 @@ package com.example.konnect_backend.domain.auth.service;
 
 import com.example.konnect_backend.domain.auth.dto.request.NativeOAuthRequest;
 import com.example.konnect_backend.domain.auth.dto.request.NativeSignUpRequest;
-import com.example.konnect_backend.domain.auth.dto.request.ChildCreateDto;
 import com.example.konnect_backend.domain.auth.dto.response.OAuthLoginResponse;
 import com.example.konnect_backend.domain.auth.dto.response.SignUpResponse;
 import com.example.konnect_backend.domain.auth.dto.response.SocialUserInfo;
-import com.example.konnect_backend.domain.user.entity.Child;
 import com.example.konnect_backend.domain.user.entity.SocialAccount;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
-import com.example.konnect_backend.domain.user.repository.ChildRepository;
 import com.example.konnect_backend.domain.user.repository.SocialAccountRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
@@ -36,7 +33,6 @@ public class NativeAuthService {
     private final NativeOAuthService nativeOAuthService;
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
-    private final ChildRepository childRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final DataMergeService dataMergeService;
 
@@ -115,26 +111,10 @@ public class NativeAuthService {
                 .build();
         socialAccountRepository.save(socialAccount);
 
-        // 4. 자녀 정보 저장
-        if (request.getChildren() != null && !request.getChildren().isEmpty()) {
-            for (ChildCreateDto childDto : request.getChildren()) {
-                Child child = Child.builder()
-                        .user(user)
-                        .name(childDto.getName())
-                        .school(childDto.getSchool())
-                        .grade(childDto.getGrade())
-                        .birthDate(childDto.getBirthDate())
-                        .className(childDto.getClassName())
-                        .teacherName(childDto.getTeacherName())
-                        .build();
-                childRepository.save(child);
-            }
-        }
+        // 4. 게스트 데이터 병합 (선택)
+        mergeGuestDataIfPresent(request.getGuestToken(), user);
 
-        // 5. 게스트 데이터 병합 (선택)
-        mergeGuestDataIfPresent(request.getGuestAccessToken(), user);
-
-        // 6. JWT 발급
+        // 5. JWT 발급
         String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
