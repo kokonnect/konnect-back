@@ -4,7 +4,9 @@
       "Bash(./gradlew compileJava:*)",
       "Bash(./gradlew clean:*)",
       "Bash(./gradlew dependencies:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(dir:*)",
+      "Bash(del /f \"C:\\Users\\haeun\\OneDrive\\Desktop\\BEProject\\konnect-back\\src\\main\\java\\com\\example\\konnect_backend\\domain\\auth\\dto\\request\\SignInRequest.java.bak\")"
     ],
     "deny": [],
     "ask": []

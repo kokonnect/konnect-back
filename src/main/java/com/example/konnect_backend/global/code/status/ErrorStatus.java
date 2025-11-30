@@ -92,7 +92,13 @@ public enum ErrorStatus implements BaseErrorCode {
     GOOGLE_VISION_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "DOC4005", "Google Vision API 오류가 발생했습니다."),
     PDF_PROCESSING_FAILED(HttpStatus.BAD_REQUEST, "DOC4006", "PDF 처리 중 오류가 발생했습니다."),
     DOCUMENT_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "DOC4007", "문서 분석 결과를 찾을 수 없습니다."),
-    ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "DOC4008", "재시도할 분석 세션을 찾을 수 없습니다. 캐시가 만료되었을 수 있습니다.");
+    ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "DOC4008", "재시도할 분석 세션을 찾을 수 없습니다. 캐시가 만료되었을 수 있습니다."),
+
+    // OAuth Errors
+    OAUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "OAUTH4001", "유효하지 않은 소셜 액세스 토큰입니다."),
+    OAUTH_USER_INFO_FAILED(HttpStatus.BAD_REQUEST, "OAUTH4002", "소셜 사용자 정보를 가져오는데 실패했습니다."),
+    UNSUPPORTED_OAUTH_PROVIDER(HttpStatus.BAD_REQUEST, "OAUTH4003", "지원하지 않는 OAuth 제공자입니다."),
+    SOCIAL_ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OAUTH4004", "이미 가입된 소셜 계정입니다.");
 
 
 
