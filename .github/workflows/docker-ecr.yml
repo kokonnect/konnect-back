@@ -79,7 +79,7 @@ jobs:
 
           # ECR 로그인 확인
           echo "Checking Docker login status..."
-          docker info | grep -A 3 "Registry:"
+          docker info | grep -A 3 "Registry:" || echo "No registry info found (this is normal)"
 
           echo ""
           echo "📦 Pushing: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
