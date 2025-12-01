@@ -75,9 +75,23 @@ jobs:
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "🚀 Pushing Docker images to ECR..."
+
+          echo "📦 Pushing: latest"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || {
+            echo "❌ Failed to push latest tag"
+            echo "Checking ECR permissions..."
+            aws ecr get-repository-policy --repository-name $ECR_REPOSITORY --region ${{ env.AWS_REGION }} || echo "No repository policy set"
+            exit 1
+          }
+
+          echo "📦 Pushing: ${{ steps.meta.outputs.sha_short }}"
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.sha_short }}
+
+          echo "📦 Pushing: ${{ steps.meta.outputs.timestamp }}"
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.timestamp }}
+
+          echo "✅ All images pushed successfully!"
 
       - name: Image digest
         env:
