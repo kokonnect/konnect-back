@@ -62,17 +62,32 @@ jobs:
 
       - name: Build Docker image
         run: |
+          echo "🔨 Building Docker image..."
+          echo "Full image name: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
+
           docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
           docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.sha_short }}
           docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.timestamp }}
 
+          echo "✅ Docker images built:"
+          docker images | grep ${{ env.ECR_REPOSITORY }}
+
       - name: Push Docker image to ECR
         run: |
           echo "🚀 Pushing Docker images to ECR..."
+          echo "Target: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
 
-          echo "📦 Pushing: latest"
+          # ECR 로그인 확인
+          echo "Checking Docker login status..."
+          docker info | grep -A 3 "Registry:"
+
+          echo ""
+          echo "📦 Pushing: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
           docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest || {
             echo "❌ Failed to push latest tag"
+            echo "Available local images:"
+            docker images | head -20
+            echo ""
             echo "Checking ECR permissions..."
             aws ecr get-repository-policy --repository-name ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} || echo "No repository policy set"
             exit 1
