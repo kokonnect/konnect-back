@@ -116,3 +116,63 @@ jobs:
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+            set -e
+
+            echo "🔐 Logging in to ECR..."
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+            echo "📥 Pulling latest image from ECR..."
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+            echo "📝 Creating .env file..."
+            cat > /tmp/konnect-backend.env << 'ENVEOF'
+          ${{ secrets.PROD_ENV_FILE }}
+          ENVEOF
+
+            echo "🛑 Stopping existing container..."
+            docker stop konnect-backend || true
+            docker rm konnect-backend || true
+
+            echo "🚀 Starting new container..."
+            docker run -d \
+              --name konnect-backend \
+              -p ${{ secrets.PROD_SERVER_PORT }}:8080 \
+              --env-file /tmp/konnect-backend.env \
+              --restart unless-stopped \
+              ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+            echo "🧹 Cleaning up .env file..."
+            rm -f /tmp/konnect-backend.env
+
+            echo "⏳ Waiting for application to start..."
+            sleep 15
+
+            echo "🔍 Checking container status..."
+            if docker ps | grep konnect-backend > /dev/null; then
+              echo "✅ Container is running"
+              docker logs konnect-backend --tail 20
+            else
+              echo "❌ Container failed to start"
+              docker logs konnect-backend --tail 50
+              exit 1
+            fi
+
+            echo "✅ Deployment completed successfully!"
+          EOF
