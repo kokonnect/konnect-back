@@ -7,6 +7,8 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 672271953867.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: konnect-women-b
 
 jobs:
   build-and-push:
@@ -29,14 +31,11 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Verify ECR access and repository
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
           echo "🔍 Checking AWS credentials and ECR access..."
           echo "AWS Region: ${{ env.AWS_REGION }}"
-          echo "ECR Registry: $ECR_REGISTRY"
-          echo "ECR Repository: $ECR_REPOSITORY"
+          echo "ECR Registry: ${{ env.ECR_REGISTRY }}"
+          echo "ECR Repository: ${{ env.ECR_REPOSITORY }}"
 
           # AWS 인증 확인
           echo "✓ AWS Identity:"
@@ -45,11 +44,11 @@ jobs:
           # ECR 리포지토리 존재 확인
           echo "✓ Checking ECR repository..."
           aws ecr describe-repositories \
-            --repository-names $ECR_REPOSITORY \
+            --repository-names ${{ env.ECR_REPOSITORY }} \
             --region ${{ env.AWS_REGION }} || {
               echo "❌ Repository does not exist. Creating..."
               aws ecr create-repository \
-                --repository-name $ECR_REPOSITORY \
+                --repository-name ${{ env.ECR_REPOSITORY }} \
                 --region ${{ env.AWS_REGION }}
             }
 
@@ -62,45 +61,36 @@ jobs:
           echo "timestamp=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.sha_short }}
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.timestamp }}
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.sha_short }}
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.timestamp }}
 
       - name: Push Docker image to ECR
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
           echo "🚀 Pushing Docker images to ECR..."
 
           echo "📦 Pushing: latest"
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest || {
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest || {
             echo "❌ Failed to push latest tag"
             echo "Checking ECR permissions..."
-            aws ecr get-repository-policy --repository-name $ECR_REPOSITORY --region ${{ env.AWS_REGION }} || echo "No repository policy set"
+            aws ecr get-repository-policy --repository-name ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} || echo "No repository policy set"
             exit 1
           }
 
           echo "📦 Pushing: ${{ steps.meta.outputs.sha_short }}"
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.sha_short }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.sha_short }}
 
           echo "📦 Pushing: ${{ steps.meta.outputs.timestamp }}"
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.timestamp }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.timestamp }}
 
           echo "✅ All images pushed successfully!"
 
       - name: Image digest
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
           echo "### 🐳 Docker Image Published to ECR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Repository:** \`$ECR_REGISTRY/$ECR_REPOSITORY\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** \`${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "- \`latest\`" >> $GITHUB_STEP_SUMMARY
@@ -109,5 +99,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Pull command:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
