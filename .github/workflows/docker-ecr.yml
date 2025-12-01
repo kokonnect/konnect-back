@@ -28,6 +28,33 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Verify ECR access and repository
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        run: |
+          echo "🔍 Checking AWS credentials and ECR access..."
+          echo "AWS Region: ${{ env.AWS_REGION }}"
+          echo "ECR Registry: $ECR_REGISTRY"
+          echo "ECR Repository: $ECR_REPOSITORY"
+
+          # AWS 인증 확인
+          echo "✓ AWS Identity:"
+          aws sts get-caller-identity
+
+          # ECR 리포지토리 존재 확인
+          echo "✓ Checking ECR repository..."
+          aws ecr describe-repositories \
+            --repository-names $ECR_REPOSITORY \
+            --region ${{ env.AWS_REGION }} || {
+              echo "❌ Repository does not exist. Creating..."
+              aws ecr create-repository \
+                --repository-name $ECR_REPOSITORY \
+                --region ${{ env.AWS_REGION }}
+            }
+
+          echo "✅ ECR access verified!"
+
       - name: Extract metadata for Docker
         id: meta
         run: |
