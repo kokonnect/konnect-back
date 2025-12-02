@@ -7,6 +7,8 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 672271953867.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: konnect-women-b
 
 jobs:
   build-and-push:
@@ -28,6 +30,30 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Verify ECR access and repository
+        run: |
+          echo "🔍 Checking AWS credentials and ECR access..."
+          echo "AWS Region: ${{ env.AWS_REGION }}"
+          echo "ECR Registry: ${{ env.ECR_REGISTRY }}"
+          echo "ECR Repository: ${{ env.ECR_REPOSITORY }}"
+
+          # AWS 인증 확인
+          echo "✓ AWS Identity:"
+          aws sts get-caller-identity
+
+          # ECR 리포지토리 존재 확인
+          echo "✓ Checking ECR repository..."
+          aws ecr describe-repositories \
+            --repository-names ${{ env.ECR_REPOSITORY }} \
+            --region ${{ env.AWS_REGION }} || {
+              echo "❌ Repository does not exist. Creating..."
+              aws ecr create-repository \
+                --repository-name ${{ env.ECR_REPOSITORY }} \
+                --region ${{ env.AWS_REGION }}
+            }
+
+          echo "✅ ECR access verified!"
+
       - name: Extract metadata for Docker
         id: meta
         run: |
@@ -35,31 +61,51 @@ jobs:
           echo "timestamp=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.sha_short }}
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.timestamp }}
+          echo "🔨 Building Docker image..."
+          echo "Full image name: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
+
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.sha_short }}
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.timestamp }}
+
+          echo "✅ Docker images built:"
+          docker images | grep ${{ env.ECR_REPOSITORY }}
 
       - name: Push Docker image to ECR
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.sha_short }}
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.meta.outputs.timestamp }}
+          echo "🚀 Pushing Docker images to ECR..."
+          echo "Target: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
+
+          # ECR 로그인 확인
+          echo "Checking Docker login status..."
+          docker info | grep -A 3 "Registry:" || echo "No registry info found (this is normal)"
+
+          echo ""
+          echo "📦 Pushing: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest"
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest || {
+            echo "❌ Failed to push latest tag"
+            echo "Available local images:"
+            docker images | head -20
+            echo ""
+            echo "Checking ECR permissions..."
+            aws ecr get-repository-policy --repository-name ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} || echo "No repository policy set"
+            exit 1
+          }
+
+          echo "📦 Pushing: ${{ steps.meta.outputs.sha_short }}"
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.sha_short }}
+
+          echo "📦 Pushing: ${{ steps.meta.outputs.timestamp }}"
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.timestamp }}
+
+          echo "✅ All images pushed successfully!"
 
       - name: Image digest
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
         run: |
           echo "### 🐳 Docker Image Published to ECR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Repository:** \`$ECR_REGISTRY/$ECR_REPOSITORY\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** \`${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
           echo "- \`latest\`" >> $GITHUB_STEP_SUMMARY
@@ -68,5 +114,65 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Pull command:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+            set -e
+
+            echo "🔐 Logging in to ECR..."
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+            echo "📥 Pulling latest image from ECR..."
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+            echo "📝 Creating .env file..."
+            cat > /tmp/konnect-backend.env << 'ENVEOF'
+          ${{ secrets.PROD_ENV_FILE }}
+          ENVEOF
+
+            echo "🛑 Stopping existing container..."
+            docker stop konnect-backend || true
+            docker rm konnect-backend || true
+
+            echo "🚀 Starting new container..."
+            docker run -d \
+              --name konnect-backend \
+              -p ${{ secrets.PROD_SERVER_PORT }}:8080 \
+              --env-file /tmp/konnect-backend.env \
+              --restart unless-stopped \
+              ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+            echo "🧹 Cleaning up .env file..."
+            rm -f /tmp/konnect-backend.env
+
+            echo "⏳ Waiting for application to start..."
+            sleep 15
+
+            echo "🔍 Checking container status..."
+            if docker ps | grep konnect-backend > /dev/null; then
+              echo "✅ Container is running"
+              docker logs konnect-backend --tail 20
+            else
+              echo "❌ Container failed to start"
+              docker logs konnect-backend --tail 50
+              exit 1
+            fi
+
+            echo "✅ Deployment completed successfully!"
+          EOF
