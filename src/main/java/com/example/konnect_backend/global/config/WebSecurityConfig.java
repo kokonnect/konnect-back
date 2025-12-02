@@ -107,8 +107,10 @@ public class WebSecurityConfig {
                 "ws://localhost:8080",
                 "http://localhost:3000",
                 "https://konnect-women.site",
-                "http://localhost:8081",
-                "http://konnect-women.site"
+                "https://www.konnect-women.site",
+                "http://konnect-women.site",
+                "http://www.konnect-women.site",
+                "http://localhost:8081"
         );
 
         config.setAllowedOrigins(allowedOrigins);
