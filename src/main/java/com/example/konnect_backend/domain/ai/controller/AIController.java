@@ -1,29 +1,20 @@
 package com.example.konnect_backend.domain.ai.controller;
 
-import com.example.konnect_backend.domain.ai.dto.request.FileTranslationRequest;
-import com.example.konnect_backend.domain.ai.dto.request.TranslationRequest;
+import com.example.konnect_backend.domain.ai.dto.FileType;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
-import com.example.konnect_backend.global.ApiResponse;
-import com.example.konnect_backend.domain.ai.dto.response.FileTranslationResponse;
 import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
-import com.example.konnect_backend.domain.ai.service.FileTranslationService;
+import com.example.konnect_backend.domain.ai.service.DocumentHistoryService;
 import com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline;
-import com.example.konnect_backend.global.exception.GeneralException;
+import com.example.konnect_backend.global.ApiResponse;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
+import com.example.konnect_backend.global.exception.GeneralException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.example.konnect_backend.domain.ai.dto.FileType;
-import com.example.konnect_backend.domain.ai.dto.TargetLanguage;
-
-import java.util.Arrays;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -32,101 +23,10 @@ import java.util.stream.Collectors;
 @Tag(name = "AI Services", description = "AI 기반 서비스 API")
 public class AIController {
 
-    private final FileTranslationService fileTranslationService;
     private final DocumentAnalysisPipeline documentAnalysisPipeline;
+    private final DocumentHistoryService documentHistoryService;
 
     private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-
-    /**
-     * 파일 입력값 검증
-     */
-    private void validateFileInput(MultipartFile file, FileType fileType) {
-        if (file == null || file.isEmpty()) {
-            throw new GeneralException(ErrorStatus.FILE_EMPTY);
-        }
-
-        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
-            throw new GeneralException(ErrorStatus.FILE_NAME_MISSING);
-        }
-
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new GeneralException(ErrorStatus.FILE_SIZE_EXCEEDED);
-        }
-
-        if (fileType == null) {
-            throw new GeneralException(ErrorStatus.UNSUPPORTED_FILE_TYPE);
-        }
-
-        String contentType = file.getContentType();
-        if (fileType == FileType.PDF && !"application/pdf".equals(contentType)) {
-            throw new GeneralException(ErrorStatus.INVALID_PDF_FILE);
-        }
-
-        if (fileType == FileType.IMAGE && (contentType == null || !contentType.startsWith("image/"))) {
-            throw new GeneralException(ErrorStatus.INVALID_IMAGE_FILE);
-        }
-    }
-
-    @PostMapping(value = "/translate", consumes = "multipart/form-data")
-    @Operation(summary = "파일 번역", description = "PDF 또는 이미지 파일의 텍스트를 추출하여 번역합니다.")
-    public ResponseEntity<ApiResponse<FileTranslationResponse>> translateFile(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("fileType") FileType fileType,
-            @RequestParam("targetLanguage") TargetLanguage targetLanguage,
-            @RequestParam(value = "useSimpleLanguage", defaultValue = "true") Boolean useSimpleLanguage,
-            @RequestParam(value = "sourceLanguageHint", required = false) String sourceLanguageHint) {
-
-        validateFileInput(file, fileType);
-
-        try {
-            FileTranslationRequest request = new FileTranslationRequest(
-                    file, fileType, targetLanguage, useSimpleLanguage, sourceLanguageHint);
-
-            FileTranslationResponse response = fileTranslationService.translateFile(request);
-            
-            return ResponseEntity.ok(ApiResponse.onSuccess(response));
-            
-        } catch (Exception e) {
-            log.error("파일 번역 API 오류: {}", e.getMessage(), e);
-            throw e;
-        }
-    }
-
-
-    @GetMapping("/languages")
-    @Operation(summary = "지원 언어 목록", description = "번역 가능한 언어 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSupportedLanguages() {
-
-        var sourceLanguages = Arrays.stream(TranslationRequest.LanguageType.values())
-                .filter(lang -> lang != TranslationRequest.LanguageType.KOREAN)
-                .collect(Collectors.toMap(
-                        Enum::name,
-                        Enum::name
-                ));
-
-        Map<String, Object> result = Map.of(
-                "sourceLanguages", sourceLanguages,
-                "targetLanguage", "KOREAN",
-                "description", "모든 언어는 한국어로 번역됩니다"
-        );
-
-        return ResponseEntity.ok(ApiResponse.onSuccess(result));
-    }
-    
-    @GetMapping("/translate/history")
-    @Operation(summary = "번역 내역 조회", description = "사용자의 최근 번역 내역을 최대 10개까지 조회합니다.")
-    public ResponseEntity<ApiResponse<TranslationHistoryResponse>> getTranslationHistory() {
-
-        try {
-            TranslationHistoryResponse response = fileTranslationService.getTranslationHistory();
-
-            return ResponseEntity.ok(ApiResponse.onSuccess(response));
-
-        } catch (Exception e) {
-            log.error("번역 내역 조회 API 오류: {}", e.getMessage(), e);
-            throw e;
-        }
-    }
 
     @PostMapping(value = "/analyze", consumes = "multipart/form-data")
     @Operation(summary = "가정통신문 분석",
@@ -162,5 +62,39 @@ public class AIController {
         DocumentAnalysisResponse response = documentAnalysisPipeline.retry(analysisId, file, fileType);
 
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    @GetMapping("/history")
+    @Operation(summary = "분석 내역 조회", description = "사용자의 최근 문서 분석 내역을 최대 10개까지 조회합니다.")
+    public ResponseEntity<ApiResponse<TranslationHistoryResponse>> getHistory() {
+        TranslationHistoryResponse response = documentHistoryService.getHistory();
+        return ResponseEntity.ok(ApiResponse.onSuccess(response));
+    }
+
+    private void validateFileInput(MultipartFile file, FileType fileType) {
+        if (file == null || file.isEmpty()) {
+            throw new GeneralException(ErrorStatus.FILE_EMPTY);
+        }
+
+        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
+            throw new GeneralException(ErrorStatus.FILE_NAME_MISSING);
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new GeneralException(ErrorStatus.FILE_SIZE_EXCEEDED);
+        }
+
+        if (fileType == null) {
+            throw new GeneralException(ErrorStatus.UNSUPPORTED_FILE_TYPE);
+        }
+
+        String contentType = file.getContentType();
+        if (fileType == FileType.PDF && !"application/pdf".equals(contentType)) {
+            throw new GeneralException(ErrorStatus.INVALID_PDF_FILE);
+        }
+
+        if (fileType == FileType.IMAGE && (contentType == null || !contentType.startsWith("image/"))) {
+            throw new GeneralException(ErrorStatus.INVALID_IMAGE_FILE);
+        }
     }
 }
