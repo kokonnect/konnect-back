@@ -1,0 +1,21 @@
+package com.example.konnect_backend.domain.notification.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class FcmTokenRequest {
+
+    @NotBlank(message = "FCM 토큰은 필수입니다")
+    private String token;
+
+    private String deviceId;
+
+    private String deviceType;  // iOS, Android 등
+}

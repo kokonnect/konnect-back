@@ -53,9 +53,13 @@ public class DifficultExpressionExtractorModule implements PromptModule<String, 
 
             ## 중요
             - original: 원본 한국어 표현 그대로
-            - explanation: %s로 쉽게 풀어서 설명 (간단명료하게)
+            - explanation: %s로 쉽게 풀어서 설명 (간단명료하게, 순수 텍스트만)
             - 최대 10개까지만 추출
             - 정말 어려운 표현만 선별
+
+            ## 출력 형식 규칙 (필수)
+            - 마크다운 문법 사용 금지 (###, **, *, -, |, 표 등 사용하지 않기)
+            - explanation 필드는 순수 텍스트로만 작성
 
             ## 분석할 텍스트
             %s

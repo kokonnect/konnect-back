@@ -85,6 +85,10 @@ public class UnifiedExtractorModule implements PromptModule<String, ExtractionRe
             - 모든 텍스트 필드는 반드시 %s로 작성해주세요
             - 원본이 한국어여도 %s로 번역하여 출력
 
+            ## 출력 형식 규칙 (필수)
+            - 마크다운 문법 사용 금지 (###, **, *, -, |, 표 등 사용하지 않기)
+            - 모든 텍스트 필드는 순수 텍스트로만 작성
+
             ## 오늘 날짜 (연도 추론에 활용)
             %s
 

@@ -78,6 +78,9 @@ dependencies {
 	// 캐싱
 	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
+
+	// Firebase Admin SDK (FCM 푸시 알림)
+	implementation 'com.google.firebase:firebase-admin:9.2.0'
 }
 
 tasks.named('test') {
