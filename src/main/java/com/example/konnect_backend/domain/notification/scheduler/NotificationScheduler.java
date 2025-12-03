@@ -72,14 +72,7 @@ public class NotificationScheduler {
     }
 
     private void checkCustomAlarms(LocalDateTime checkStart, LocalDateTime checkEnd) {
-        List<ScheduleAlarm> customAlarms = scheduleAlarmRepository.findAll().stream()
-                .filter(alarm -> alarm.getAlarmTimeType() == AlarmTimeType.CUSTOM)
-                .filter(alarm -> alarm.getCustomMinutesBefore() != null)
-                .filter(alarm -> {
-                    LocalDateTime alarmTime = alarm.getCustomMinutesBefore();
-                    return !alarmTime.isBefore(checkStart) && !alarmTime.isAfter(checkEnd);
-                })
-                .toList();
+        List<ScheduleAlarm> customAlarms = scheduleAlarmRepository.findCustomAlarmsInTimeRange(checkStart, checkEnd);
 
         for (ScheduleAlarm alarm : customAlarms) {
             sendScheduleNotification(alarm.getSchedule(), alarm, "예정된 알림");

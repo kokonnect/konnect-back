@@ -29,6 +29,5 @@ CREATE TABLE IF NOT EXISTS fcm_token (
 
     CONSTRAINT fk_fcm_token_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
     CONSTRAINT uk_fcm_token UNIQUE (token),
-    INDEX idx_fcm_token_user (user_id),
-    INDEX idx_fcm_token_token (token)
+    INDEX idx_fcm_token_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

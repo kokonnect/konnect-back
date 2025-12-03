@@ -14,8 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "fcm_token", indexes = {
-        @Index(name = "idx_fcm_token_user", columnList = "user_id"),
-        @Index(name = "idx_fcm_token_token", columnList = "token")
+        @Index(name = "idx_fcm_token_user", columnList = "user_id")
 })
 public class FcmToken extends BaseEntity {
 

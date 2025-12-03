@@ -22,7 +22,14 @@ public interface ScheduleAlarmRepository extends JpaRepository<ScheduleAlarm, Lo
     
     @Query("SELECT sa FROM ScheduleAlarm sa JOIN sa.schedule s " +
            "WHERE sa.user = :user AND s.startDate BETWEEN :startTime AND :endTime")
-    List<ScheduleAlarm> findAlarmsInTimeRange(@Param("user") User user, 
-                                              @Param("startTime") LocalDateTime startTime, 
+    List<ScheduleAlarm> findAlarmsInTimeRange(@Param("user") User user,
+                                              @Param("startTime") LocalDateTime startTime,
                                               @Param("endTime") LocalDateTime endTime);
+
+    @Query("SELECT sa FROM ScheduleAlarm sa " +
+           "WHERE sa.alarmTimeType = 'CUSTOM' " +
+           "AND sa.customMinutesBefore IS NOT NULL " +
+           "AND sa.customMinutesBefore BETWEEN :startTime AND :endTime")
+    List<ScheduleAlarm> findCustomAlarmsInTimeRange(@Param("startTime") LocalDateTime startTime,
+                                                     @Param("endTime") LocalDateTime endTime);
 }
