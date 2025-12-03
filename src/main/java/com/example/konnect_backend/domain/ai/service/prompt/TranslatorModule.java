@@ -48,6 +48,11 @@ public class TranslatorModule implements PromptModule<String, String> {
             - 문단 구조 유지
             - 번역문만 출력하고 다른 설명은 하지 마세요
 
+            ## 출력 형식 규칙 (필수)
+            - 마크다운 문법 사용 금지 (###, **, *, -, |, 표 등 사용하지 않기)
+            - 순수 텍스트로만 작성
+            - 줄바꿈은 허용하되, 특수 기호나 서식 없이 일반 문장으로 작성
+
             ## 원문
             %s
 

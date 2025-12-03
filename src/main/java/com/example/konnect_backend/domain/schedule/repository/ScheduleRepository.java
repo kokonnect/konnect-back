@@ -12,47 +12,38 @@ import java.util.List;
 
 @Repository
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
-    
-    @Query("SELECT s FROM Schedule s WHERE s.user = :user " +
-           "AND ((s.startDate >= :startDate AND s.startDate < :endDate) " +
-           "OR (s.endDate > :startDate AND s.endDate <= :endDate) " +
+
+    /**
+     * 사용자의 모든 일정을 반복 설정과 함께 조회 (Fetch Join으로 N+1 방지)
+     */
+    @Query("SELECT DISTINCT s FROM Schedule s " +
+           "LEFT JOIN FETCH s.scheduleRepeat " +
+           "WHERE s.user = :user " +
+           "ORDER BY s.startDate ASC")
+    List<Schedule> findAllByUserWithRepeat(@Param("user") User user);
+
+    /**
+     * 특정 기간 내 일정을 반복 설정과 함께 조회
+     */
+    @Query("SELECT DISTINCT s FROM Schedule s " +
+           "LEFT JOIN FETCH s.scheduleRepeat " +
+           "WHERE s.user = :user " +
+           "AND ((s.startDate >= :startDate AND s.startDate <= :endDate) " +
+           "OR (s.endDate >= :startDate AND s.endDate <= :endDate) " +
            "OR (s.startDate <= :startDate AND s.endDate >= :endDate)) " +
            "ORDER BY s.startDate ASC")
-    List<Schedule> findByUserAndDateRange(@Param("user") User user, 
-                                          @Param("startDate") LocalDateTime startDate, 
-                                          @Param("endDate") LocalDateTime endDate);
-    
-    @Query("SELECT s FROM Schedule s WHERE s.user = :user " +
+    List<Schedule> findByUserAndDateRangeWithRepeat(@Param("user") User user,
+                                                     @Param("startDate") LocalDateTime startDate,
+                                                     @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * 현재 시점 이후의 예정된 일정 조회 (반복 설정 포함)
+     */
+    @Query("SELECT DISTINCT s FROM Schedule s " +
+           "LEFT JOIN FETCH s.scheduleRepeat " +
+           "WHERE s.user = :user " +
            "AND s.startDate >= :now " +
            "ORDER BY s.startDate ASC")
-    List<Schedule> findUpcomingSchedules(@Param("user") User user, 
-                                         @Param("now") LocalDateTime now);
-    
-    List<Schedule> findByUserOrderByStartDateDesc(User user);
-    
-    @Query("SELECT s FROM Schedule s WHERE s.user = :user " +
-           "AND DATE(s.startDate) = :date " +
-           "ORDER BY s.startDate ASC")
-    List<Schedule> findByUserAndDate(@Param("user") User user, 
-                                     @Param("date") LocalDateTime date);
-    
-    @Query("SELECT s FROM Schedule s WHERE s.user = :user " +
-           "AND s.startDate >= :startOfWeek AND s.startDate < :endOfWeek " +
-           "ORDER BY s.startDate ASC")
-    List<Schedule> findByUserAndWeek(@Param("user") User user, 
-                                     @Param("startOfWeek") LocalDateTime startOfWeek, 
-                                     @Param("endOfWeek") LocalDateTime endOfWeek);
-    
-    @Query("SELECT DATE(s.startDate) as date, COUNT(s) as count " +
-           "FROM Schedule s WHERE s.user = :user " +
-           "AND s.startDate >= :startDate AND s.startDate < :endDate " +
-           "GROUP BY DATE(s.startDate)")
-    List<Object[]> findScheduleCountsByDate(@Param("user") User user, 
-                                            @Param("startDate") LocalDateTime startDate, 
-                                            @Param("endDate") LocalDateTime endDate);
-    
-    @Query("SELECT s FROM Schedule s WHERE s.user = :user " +
-           "AND DATE(s.startDate) = CURRENT_DATE " +
-           "ORDER BY s.startDate ASC")
-    List<Schedule> findTodaySchedules(@Param("user") User user);
+    List<Schedule> findUpcomingSchedulesWithRepeat(@Param("user") User user,
+                                                    @Param("now") LocalDateTime now);
 }

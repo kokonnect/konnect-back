@@ -8,7 +8,10 @@
       "Bash(dir:*)",
       "Bash(del /f \"C:\\Users\\haeun\\OneDrive\\Desktop\\BEProject\\konnect-back\\src\\main\\java\\com\\example\\konnect_backend\\domain\\auth\\dto\\request\\SignInRequest.java.bak\")",
       "Bash(del /f \"C:\\Users\\haeun\\OneDrive\\Desktop\\BEProject\\konnect-back\\src\\main\\java\\com\\example\\konnect_backend\\domain\\ai\\service\\FileTranslationService.java\")",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(./gradlew bootRun:*)",
+      "Bash(curl:*)",
+      "Bash(./gradlew test:*)"
     ],
     "deny": [],
     "ask": []

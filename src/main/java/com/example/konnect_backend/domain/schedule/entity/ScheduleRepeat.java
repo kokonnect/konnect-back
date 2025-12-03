@@ -1,6 +1,5 @@
 package com.example.konnect_backend.domain.schedule.entity;
 
-import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.schedule.entity.status.RepeatEndType;
 import com.example.konnect_backend.domain.schedule.entity.status.RepeatType;
 import com.example.konnect_backend.global.common.BaseEntity;
@@ -23,18 +22,16 @@ public class ScheduleRepeat extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private RepeatType repeatType; // DAILY, WEEKLY, MONTHLY, YEARLY
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private RepeatEndType repeatEndType; // FOREVER, UNTIL_DATE, COUNT
 
     private LocalDateTime repeatEndDate;

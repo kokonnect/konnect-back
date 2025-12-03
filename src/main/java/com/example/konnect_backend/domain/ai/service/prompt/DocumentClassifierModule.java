@@ -60,6 +60,10 @@ public class DocumentClassifierModule implements PromptModule<String, Classifica
             ## 분석할 텍스트
             %s
 
+            ## 출력 형식 규칙 (필수)
+            - 마크다운 문법 사용 금지 (###, **, *, -, |, 표 등 사용하지 않기)
+            - 모든 텍스트 필드는 순수 텍스트로만 작성
+
             ## 응답 형식 (반드시 아래 JSON 형식으로만 출력, 다른 텍스트 없이)
             분류 과정을 단계별로 설명해주세요:
             {
