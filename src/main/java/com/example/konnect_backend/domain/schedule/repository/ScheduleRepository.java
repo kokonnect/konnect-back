@@ -22,28 +22,12 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
            "ORDER BY s.startDate ASC")
     List<Schedule> findAllByUserWithRepeat(@Param("user") User user);
 
-    /**
-     * 특정 기간 내 일정을 반복 설정과 함께 조회
-     */
-    @Query("SELECT DISTINCT s FROM Schedule s " +
-           "LEFT JOIN FETCH s.scheduleRepeat " +
-           "WHERE s.user = :user " +
-           "AND ((s.startDate >= :startDate AND s.startDate <= :endDate) " +
-           "OR (s.endDate >= :startDate AND s.endDate <= :endDate) " +
-           "OR (s.startDate <= :startDate AND s.endDate >= :endDate)) " +
-           "ORDER BY s.startDate ASC")
-    List<Schedule> findByUserAndDateRangeWithRepeat(@Param("user") User user,
-                                                     @Param("startDate") LocalDateTime startDate,
-                                                     @Param("endDate") LocalDateTime endDate);
 
     /**
-     * 현재 시점 이후의 예정된 일정 조회 (반복 설정 포함)
+     * 특정 시간 범위 내에 시작하는 일정 조회 (알림 스케줄러용)
      */
-    @Query("SELECT DISTINCT s FROM Schedule s " +
-           "LEFT JOIN FETCH s.scheduleRepeat " +
-           "WHERE s.user = :user " +
-           "AND s.startDate >= :now " +
-           "ORDER BY s.startDate ASC")
-    List<Schedule> findUpcomingSchedulesWithRepeat(@Param("user") User user,
-                                                    @Param("now") LocalDateTime now);
+    @Query("SELECT s FROM Schedule s " +
+           "WHERE s.startDate >= :startTime AND s.startDate <= :endTime")
+    List<Schedule> findByStartDateBetween(@Param("startTime") LocalDateTime startTime,
+                                          @Param("endTime") LocalDateTime endTime);
 }

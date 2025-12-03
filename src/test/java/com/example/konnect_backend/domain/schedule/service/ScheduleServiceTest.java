@@ -59,9 +59,6 @@ class ScheduleServiceTest {
 
     private User testUser;
     private Schedule testSchedule;
-    private ScheduleRepeat weeklyRepeat;
-    private ScheduleRepeat monthlyRepeat;
-    private ScheduleRepeat dailyRepeat;
 
     @BeforeEach
     void setUp() {
@@ -447,6 +444,156 @@ class ScheduleServiceTest {
                         .toList();
 
                 assertThat(actualDays).containsExactlyElementsOf(expectedDays);
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("매년 반복 일정 (YEARLY)")
+    class YearlyRepeatTest {
+
+        @Test
+        @DisplayName("매년 반복 일정 - 같은 월/일에 표시")
+        void yearlyRepeat_showsOnSameDateEveryYear() {
+            try (MockedStatic<SecurityUtil> securityUtil = mockStatic(SecurityUtil.class)) {
+                // given
+                securityUtil.when(SecurityUtil::getCurrentUserIdOrNull).thenReturn(1L);
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+                // 2024년 12월 25일 시작, 매년 반복
+                ScheduleRepeat repeat = ScheduleRepeat.builder()
+                        .id(1L)
+                        .repeatType(RepeatType.YEARLY)
+                        .repeatEndType(RepeatEndType.FOREVER)
+                        .build();
+
+                Schedule schedule = Schedule.builder()
+                        .scheduleId(1L)
+                        .user(testUser)
+                        .title("크리스마스")
+                        .startDate(LocalDateTime.of(2024, 12, 25, 0, 0))
+                        .endDate(LocalDateTime.of(2024, 12, 25, 23, 59))
+                        .scheduleRepeat(repeat)
+                        .build();
+
+                when(scheduleRepository.findAllByUserWithRepeat(testUser))
+                        .thenReturn(List.of(schedule));
+
+                // when - 2025년 12월 조회
+                List<CalendarDateResponse> result = scheduleService.getCalendarDates(2025, 12);
+
+                // then
+                // 12월 25일에만 일정이 있어야 함
+                CalendarDateResponse day25 = result.stream()
+                        .filter(r -> r.getDate().getDayOfMonth() == 25)
+                        .findFirst().orElseThrow();
+                assertThat(day25.getHasSchedule()).isTrue();
+                assertThat(day25.getScheduleCount()).isEqualTo(1);
+
+                // 다른 날짜는 일정 없음
+                long daysWithSchedule = result.stream()
+                        .filter(CalendarDateResponse::getHasSchedule)
+                        .count();
+                assertThat(daysWithSchedule).isEqualTo(1);
+            }
+        }
+
+        @Test
+        @DisplayName("윤년 2월 29일 - 평년에는 2월 28일로 표시")
+        void leapYearDate_adjustedToValidDate() {
+            try (MockedStatic<SecurityUtil> securityUtil = mockStatic(SecurityUtil.class)) {
+                // given
+                securityUtil.when(SecurityUtil::getCurrentUserIdOrNull).thenReturn(1L);
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+                // 2024년 2월 29일 시작 (윤년), 매년 반복
+                ScheduleRepeat repeat = ScheduleRepeat.builder()
+                        .id(1L)
+                        .repeatType(RepeatType.YEARLY)
+                        .repeatEndType(RepeatEndType.FOREVER)
+                        .build();
+
+                Schedule schedule = Schedule.builder()
+                        .scheduleId(1L)
+                        .user(testUser)
+                        .title("윤년 생일")
+                        .startDate(LocalDateTime.of(2024, 2, 29, 10, 0))
+                        .endDate(LocalDateTime.of(2024, 2, 29, 11, 0))
+                        .scheduleRepeat(repeat)
+                        .build();
+
+                when(scheduleRepository.findAllByUserWithRepeat(testUser))
+                        .thenReturn(List.of(schedule));
+
+                // when - 2025년 2월 조회 (평년)
+                List<CalendarDateResponse> result = scheduleService.getCalendarDates(2025, 2);
+
+                // then
+                // 2월 28일에 일정이 있어야 함 (29일이 없으므로)
+                CalendarDateResponse day28 = result.stream()
+                        .filter(r -> r.getDate().getDayOfMonth() == 28)
+                        .findFirst().orElseThrow();
+                assertThat(day28.getHasSchedule()).isTrue();
+
+                // 2025년 2월은 28일까지만 있음
+                assertThat(result).hasSize(28);
+            }
+        }
+
+        @Test
+        @DisplayName("매년 반복 - 횟수 제한 적용")
+        void yearlyRepeat_withCountLimit() {
+            try (MockedStatic<SecurityUtil> securityUtil = mockStatic(SecurityUtil.class)) {
+                // given
+                securityUtil.when(SecurityUtil::getCurrentUserIdOrNull).thenReturn(1L);
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+                // 2024년 12월 25일 시작, 매년 반복, 2회만
+                ScheduleRepeat repeat = ScheduleRepeat.builder()
+                        .id(1L)
+                        .repeatType(RepeatType.YEARLY)
+                        .repeatEndType(RepeatEndType.COUNT)
+                        .repeatCount(2L)
+                        .build();
+
+                Schedule schedule = Schedule.builder()
+                        .scheduleId(1L)
+                        .user(testUser)
+                        .title("한정 이벤트")
+                        .startDate(LocalDateTime.of(2024, 12, 25, 10, 0))
+                        .endDate(LocalDateTime.of(2024, 12, 25, 11, 0))
+                        .scheduleRepeat(repeat)
+                        .build();
+
+                when(scheduleRepository.findAllByUserWithRepeat(testUser))
+                        .thenReturn(List.of(schedule));
+
+                // when - 2024년 12월 조회 (첫 번째)
+                List<CalendarDateResponse> result2024 = scheduleService.getCalendarDates(2024, 12);
+
+                // then - 2024년에는 있어야 함
+                CalendarDateResponse day25_2024 = result2024.stream()
+                        .filter(r -> r.getDate().getDayOfMonth() == 25)
+                        .findFirst().orElseThrow();
+                assertThat(day25_2024.getHasSchedule()).isTrue();
+
+                // when - 2025년 12월 조회 (두 번째)
+                List<CalendarDateResponse> result2025 = scheduleService.getCalendarDates(2025, 12);
+
+                // then - 2025년에도 있어야 함 (2회째)
+                CalendarDateResponse day25_2025 = result2025.stream()
+                        .filter(r -> r.getDate().getDayOfMonth() == 25)
+                        .findFirst().orElseThrow();
+                assertThat(day25_2025.getHasSchedule()).isTrue();
+
+                // when - 2026년 12월 조회 (세 번째 - 초과)
+                List<CalendarDateResponse> result2026 = scheduleService.getCalendarDates(2026, 12);
+
+                // then - 2026년에는 없어야 함 (2회 초과)
+                CalendarDateResponse day25_2026 = result2026.stream()
+                        .filter(r -> r.getDate().getDayOfMonth() == 25)
+                        .findFirst().orElseThrow();
+                assertThat(day25_2026.getHasSchedule()).isFalse();
             }
         }
     }

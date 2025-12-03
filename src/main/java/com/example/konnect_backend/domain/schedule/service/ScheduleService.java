@@ -47,6 +47,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ScheduleService {
 
+    private static final int MAX_REPEAT_ITERATIONS = 1000;
+
     private final ScheduleRepository scheduleRepository;
     private final ScheduleRepeatRepository scheduleRepeatRepository;
     private final ScheduleAlarmRepository scheduleAlarmRepository;
@@ -284,10 +286,9 @@ public class ScheduleService {
         // rangeStart 이전의 날짜는 스킵하고 첫 번째 유효한 날짜부터 시작
         LocalDate currentDate = findFirstDateInRange(scheduleStartDate, rangeStart, repeatType);
 
-        int count = 0;
-        int maxIterations = 1000; // 무한 루프 방지
+        int iterationCount = 0;
 
-        while (currentDate != null && !currentDate.isAfter(effectiveEndDate) && count < maxIterations) {
+        while (currentDate != null && !currentDate.isAfter(effectiveEndDate) && iterationCount < MAX_REPEAT_ITERATIONS) {
             // COUNT 제한 확인
             if (repeat.getRepeatEndType() == RepeatEndType.COUNT && repeat.getRepeatCount() != null) {
                 long currentCount = calculateRepeatCount(scheduleStartDate, currentDate, repeatType);
@@ -302,7 +303,7 @@ public class ScheduleService {
             }
 
             currentDate = getNextRepeatDate(currentDate, repeatType, scheduleStartDate);
-            count++;
+            iterationCount++;
         }
 
         return expandedDates;
@@ -334,11 +335,10 @@ public class ScheduleService {
                 }
                 return candidate;
             case YEARLY:
-                // 같은 월/일 중 rangeStart 이후 첫 번째 날짜
-                LocalDate yearlyCandidate = LocalDate.of(rangeStart.getYear(),
-                        scheduleStart.getMonth(), scheduleStart.getDayOfMonth());
+                // 같은 월/일 중 rangeStart 이후 첫 번째 날짜 (윤년 처리 포함)
+                LocalDate yearlyCandidate = getValidYearlyDate(rangeStart.getYear(), scheduleStart);
                 if (yearlyCandidate.isBefore(rangeStart)) {
-                    yearlyCandidate = yearlyCandidate.plusYears(1);
+                    yearlyCandidate = getValidYearlyDate(rangeStart.getYear() + 1, scheduleStart);
                 }
                 return yearlyCandidate;
             default:
@@ -372,28 +372,40 @@ public class ScheduleService {
                 int lastDayOfMonth = nextMonth.lengthOfMonth();
                 return nextMonth.withDayOfMonth(Math.min(targetDay, lastDayOfMonth));
             case YEARLY:
-                return current.plusYears(1);
+                // 윤년 처리: 2월 29일인 경우 다음 해 유효한 날짜로 조정
+                return getValidYearlyDate(current.getYear() + 1, originalStart);
             default:
                 return current.plusDays(1);
         }
     }
 
     /**
-     * 시작일부터 대상일까지의 반복 횟수를 계산합니다.
+     * 특정 연도에서 유효한 연간 반복 날짜를 반환합니다.
+     * 2월 29일이 윤년이 아닌 해에 해당하면 2월 28일로 조정합니다.
+     */
+    private LocalDate getValidYearlyDate(int year, LocalDate originalDate) {
+        int targetMonth = originalDate.getMonthValue();
+        int targetDay = originalDate.getDayOfMonth();
+
+        YearMonth yearMonth = YearMonth.of(year, targetMonth);
+        int lastDayOfMonth = yearMonth.lengthOfMonth();
+        int validDay = Math.min(targetDay, lastDayOfMonth);
+
+        return LocalDate.of(year, targetMonth, validDay);
+    }
+
+    /**
+     * 시작일부터 대상일까지의 반복 횟수를 계산합니다 (1부터 시작).
+     * 첫 번째 발생(startDate)은 1로 계산됩니다.
      */
     private long calculateRepeatCount(LocalDate startDate, LocalDate targetDate, RepeatType repeatType) {
-        switch (repeatType) {
-            case DAILY:
-                return ChronoUnit.DAYS.between(startDate, targetDate);
-            case WEEKLY:
-                return ChronoUnit.WEEKS.between(startDate, targetDate);
-            case MONTHLY:
-                return ChronoUnit.MONTHS.between(startDate, targetDate);
-            case YEARLY:
-                return ChronoUnit.YEARS.between(startDate, targetDate);
-            default:
-                return 0;
-        }
+        long count = switch (repeatType) {
+            case DAILY -> ChronoUnit.DAYS.between(startDate, targetDate);
+            case WEEKLY -> ChronoUnit.WEEKS.between(startDate, targetDate);
+            case MONTHLY -> ChronoUnit.MONTHS.between(startDate, targetDate);
+            case YEARLY -> ChronoUnit.YEARS.between(startDate, targetDate);
+        };
+        return count + 1; // 첫 번째 발생을 1로 계산
     }
 
     /**
