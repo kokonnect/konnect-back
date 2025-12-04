@@ -111,7 +111,9 @@ public class WebSecurityConfig {
                 "http://konnect-women.site",
                 "http://www.konnect-women.site",
                 "https://www.api.konnect-women.site",
-                "http://www.api.konnect-women.site"
+                "http://www.api.konnect-women.site",
+                "http://api.konnect-women.site",
+                "https://api.konnect-women.site"
         );
 
         config.setAllowedOrigins(allowedOrigins);
