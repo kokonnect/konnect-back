@@ -3,6 +3,7 @@ package com.example.konnect_backend.domain.user.controller;
 
 import com.example.konnect_backend.domain.user.dto.ChildDto;
 import com.example.konnect_backend.domain.user.dto.ChildUpdateDto;
+import com.example.konnect_backend.domain.user.dto.UserInfoDto;
 import com.example.konnect_backend.domain.user.service.UserService;
 import com.example.konnect_backend.global.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,4 +46,11 @@ public class UserController {
         userService.deleteChild(childId);
         return ApiResponse.onSuccess(null);
     }
+
+    @GetMapping("")
+    @Operation(summary = "유저 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
+    public ApiResponse<UserInfoDto> getUserInfo() {
+        return ApiResponse.onSuccess(userService.getUserInfo());
+    }
+
 }
