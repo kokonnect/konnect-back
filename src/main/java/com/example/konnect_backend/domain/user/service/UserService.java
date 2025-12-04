@@ -3,6 +3,7 @@ package com.example.konnect_backend.domain.user.service;
 
 import com.example.konnect_backend.domain.user.dto.ChildDto;
 import com.example.konnect_backend.domain.user.dto.ChildUpdateDto;
+import com.example.konnect_backend.domain.user.dto.UserInfoDto;
 import com.example.konnect_backend.domain.user.entity.Child;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.repository.ChildRepository;
@@ -110,5 +111,20 @@ public class UserService {
         }
 
         childRepository.delete(child);
+    }
+
+    @Transactional
+    public UserInfoDto getUserInfo(){
+        Long userId = SecurityUtil.getCurrentUserIdOrNull();
+        if (userId == null) {
+            throw new GeneralException(ErrorStatus.UNAUTHORIZED);
+        }
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+        return UserInfoDto.builder()
+                .email(user.getEmail())
+                .name(user.getName())
+                .language(user.getLanguage())
+                .build();
     }
 }
