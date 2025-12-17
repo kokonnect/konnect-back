@@ -33,7 +33,7 @@ public class JwtTokenProvider {
         this.refreshValidityInMilliseconds = refreshValidityInSeconds * 1000; // 기본 7일
     }
 
-    /** ✅ 새 방식: userId + role(GUEST/USER) 을 토큰에 넣기 */
+    /**  새 방식: userId + role(GUEST/USER) 을 토큰에 넣기 */
     public String createToken(Long userId, String role) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + validityInMilliseconds);
@@ -48,7 +48,7 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /** ✅ Refresh Token 생성 */
+    /** Refresh Token 생성 */
     public String createRefreshToken(Long userId) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + refreshValidityInMilliseconds);

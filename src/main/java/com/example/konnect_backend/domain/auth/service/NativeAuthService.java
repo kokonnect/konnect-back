@@ -66,8 +66,16 @@ public class NativeAuthService {
             String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-            log.info("기존 회원 로그인 성공: userId={}", user.getId());
-            return OAuthLoginResponse.memberLogin(accessToken, refreshToken, user.getId(), provider);
+            String role = "USER";
+
+            return OAuthLoginResponse.memberLogin(
+                    accessToken,
+                    refreshToken,
+                    user.getId(),
+                    provider,
+                    role
+            );
+
         }
 
         // 3. 신규 사용자 - 회원가입 필요

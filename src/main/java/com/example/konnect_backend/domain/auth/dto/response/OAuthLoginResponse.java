@@ -30,16 +30,21 @@ public class OAuthLoginResponse {
     @Schema(description = "사용자 ID (회원인 경우에만 반환)")
     private Long userId;
 
+    @Schema(description = "사용자 역할")
+    private String role;
+
+
     /**
      * 기존 회원 로그인 성공 응답
      */
-    public static OAuthLoginResponse memberLogin(String accessToken, String refreshToken, Long userId, Provider provider) {
+    public static OAuthLoginResponse memberLogin(String accessToken, String refreshToken, Long userId, Provider provider, String role) {
         return OAuthLoginResponse.builder()
                 .isMember(true)
                 .serviceAccessToken(accessToken)
                 .serviceRefreshToken(refreshToken)
                 .userId(userId)
                 .provider(provider)
+                .role(role)
                 .build();
     }
 
