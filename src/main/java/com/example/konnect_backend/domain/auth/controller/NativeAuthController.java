@@ -42,39 +42,7 @@ public class NativeAuthController {
                     responseCode = "200",
                     description = "성공",
                     content = @Content(
-                            schema = @Schema(implementation = OAuthLoginResponse.class),
-                            examples = {
-                                    @ExampleObject(
-                                            name = "기존 회원",
-                                            value = """
-                                                    {
-                                                      "status": "COMMON200",
-                                                      "message": "OK",
-                                                      "data": {
-                                                        "isMember": true,
-                                                        "serviceAccessToken": "eyJ0eXAiOiJKV1Q...",
-                                                        "serviceRefreshToken": "eyJ0eXAiOiJKV1Q...",
-                                                        "userId": 1,
-                                                        "provider": "KAKAO"
-                                                      }
-                                                    }
-                                                    """
-                                    ),
-                                    @ExampleObject(
-                                            name = "신규 사용자",
-                                            value = """
-                                                    {
-                                                      "status": "COMMON200",
-                                                      "message": "OK",
-                                                      "data": {
-                                                        "isMember": false,
-                                                        "providerUserId": "1234567890",
-                                                        "provider": "KAKAO"
-                                                      }
-                                                    }
-                                                    """
-                                    )
-                            }
+                            schema = @Schema(implementation = ApiResponse.class)
                     )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -113,7 +81,7 @@ public class NativeAuthController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
                     description = "회원가입 성공",
-                    content = @Content(schema = @Schema(implementation = SignUpResponse.class))
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "409",
