@@ -1,6 +1,7 @@
 package com.example.konnect_backend.domain.auth.dto.response;
 
 import com.example.konnect_backend.domain.user.entity.status.Provider;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -13,7 +14,8 @@ import lombok.*;
 public class OAuthLoginResponse {
 
     @Schema(description = "기존 회원 여부 (true: 로그인 완료, false: 회원가입 필요)")
-    private boolean isMember;
+    @JsonProperty("isMember")
+    private boolean member;
 
     @Schema(description = "서비스 액세스 토큰 (회원인 경우에만 반환)")
     private String serviceAccessToken;
@@ -39,7 +41,7 @@ public class OAuthLoginResponse {
      */
     public static OAuthLoginResponse memberLogin(String accessToken, String refreshToken, Long userId, Provider provider, String role) {
         return OAuthLoginResponse.builder()
-                .isMember(true)
+                .member(true)
                 .serviceAccessToken(accessToken)
                 .serviceRefreshToken(refreshToken)
                 .userId(userId)
@@ -53,7 +55,7 @@ public class OAuthLoginResponse {
      */
     public static OAuthLoginResponse signUpRequired(String providerUserId, Provider provider) {
         return OAuthLoginResponse.builder()
-                .isMember(false)
+                .member(false)
                 .providerUserId(providerUserId)
                 .provider(provider)
                 .build();
