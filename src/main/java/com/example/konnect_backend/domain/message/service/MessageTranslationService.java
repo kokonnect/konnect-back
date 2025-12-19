@@ -112,7 +112,7 @@ public class MessageTranslationService {
      * 현재 로그인한 사용자의 메시지 번역 히스토리 조회
      */
     @Transactional(readOnly = true)
-    public List<MessageHistoryResponse> getMessageHistory() {
+    public MessageHistoryResponse getMessageHistory() {
         // 현재 로그인한 사용자 조회
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
         if (userId == null) {
@@ -131,14 +131,19 @@ public class MessageTranslationService {
         log.info("조회된 메시지 개수: {}", messages.size());
 
         // DTO로 변환
-        return messages.stream()
-                .map(message -> MessageHistoryResponse.builder()
+        List<MessageHistoryResponse.MessageHistoryItem> historyItems = messages.stream()
+                .map(message -> MessageHistoryResponse.MessageHistoryItem.builder()
                         .id(message.getId())
                         .inputPrompt(message.getInputPrompt())
                         .generatedKorean(message.getGeneratedKorean())
                         .createdAt(message.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
+
+        return MessageHistoryResponse.builder()
+                .histories(historyItems)
+                .totalCount(historyItems.size())
+                .build();
     }
 
     private String determineTargetLanguage(MessageComposeRequest request, User user) {
