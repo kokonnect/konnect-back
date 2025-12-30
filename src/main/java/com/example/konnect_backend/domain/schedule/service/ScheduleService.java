@@ -216,7 +216,13 @@ public class ScheduleService {
      */
     private List<ScheduleResponse> getExpandedSchedulesForRange(User user, LocalDate rangeStart, LocalDate rangeEnd) {
         // Fetch Join으로 한 번에 조회 (N+1 방지)
-        List<Schedule> allSchedules = scheduleRepository.findAllByUserWithRepeat(user);
+        List<Schedule> allSchedules =
+                scheduleRepository.findSchedulesOverlappingRange(
+                        user,
+                        rangeStart.atStartOfDay(),
+                        rangeEnd.atTime(LocalTime.MAX)
+                );
+
 
         List<ScheduleResponse> result = new ArrayList<>();
 
@@ -247,7 +253,13 @@ public class ScheduleService {
      * 날짜별 일정 개수를 계산합니다 (달력 표시용)
      */
     private Map<LocalDate, Integer> calculateScheduleCountByDate(User user, LocalDate rangeStart, LocalDate rangeEnd) {
-        List<Schedule> allSchedules = scheduleRepository.findAllByUserWithRepeat(user);
+        List<Schedule> allSchedules =
+                scheduleRepository.findSchedulesOverlappingRange(
+                        user,
+                        rangeStart.atStartOfDay(),
+                        rangeEnd.atTime(LocalTime.MAX)
+                );
+
         Map<LocalDate, Integer> dateCountMap = new HashMap<>();
 
         for (Schedule schedule : allSchedules) {
