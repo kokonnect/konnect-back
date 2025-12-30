@@ -6,6 +6,7 @@ import com.example.konnect_backend.global.security.oauth.CustomOAuth2UserService
 import com.example.konnect_backend.global.security.oauth.OAuth2SuccessHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -60,6 +61,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/ws/**", "/ws/**").permitAll()
                         .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(o -> o
