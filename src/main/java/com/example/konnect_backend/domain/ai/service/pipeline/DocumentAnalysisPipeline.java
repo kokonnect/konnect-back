@@ -1,20 +1,19 @@
 package com.example.konnect_backend.domain.ai.service.pipeline;
 
-import com.example.konnect_backend.domain.ai.dto.FileType;
-import com.example.konnect_backend.domain.ai.dto.TargetLanguage;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
-import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse.ProcessingStatus;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
 import com.example.konnect_backend.domain.ai.service.GeminiService;
 import com.example.konnect_backend.domain.ai.service.extractor.ImageTextExtractor;
 import com.example.konnect_backend.domain.ai.service.extractor.PdfTextExtractor;
 import com.example.konnect_backend.domain.ai.service.prompt.*;
-import com.example.konnect_backend.domain.ai.util.PromptUtils;
+import com.example.konnect_backend.domain.ai.type.FileType;
+import com.example.konnect_backend.domain.ai.type.ProcessingStatus;
+import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.document.entity.Document;
 import com.example.konnect_backend.domain.document.entity.DocumentAnalysis;
 import com.example.konnect_backend.domain.document.entity.DocumentFile;
@@ -591,7 +590,8 @@ public class DocumentAnalysisPipeline {
                                                           long processingTime) {
         return DocumentAnalysisResponse.builder()
                 .analysisId(analysisId)
-                .status(ProcessingStatus.COMPLETED)
+                .status(
+                    com.example.konnect_backend.domain.ai.type.ProcessingStatus.COMPLETED)
                 .extractedText(extractedText)
                 .simplifiedKorean(simplifiedKorean)
                 .difficultExpressions(difficultExpressions)

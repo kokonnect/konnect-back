@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.ai.controller;
 
-import com.example.konnect_backend.domain.ai.dto.FileType;
+import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
 import com.example.konnect_backend.domain.ai.service.DocumentHistoryService;

@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.document.entity;
 
-import com.example.konnect_backend.domain.ai.dto.DocumentType;
+import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;

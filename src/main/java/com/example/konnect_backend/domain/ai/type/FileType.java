@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.dto;
+package com.example.konnect_backend.domain.ai.type;
 
 public enum FileType {
     PDF("PDF 파일"),

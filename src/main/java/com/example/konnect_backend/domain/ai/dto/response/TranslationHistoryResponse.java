@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.ai.dto.response;
 
-import com.example.konnect_backend.domain.ai.dto.FileType;
+import com.example.konnect_backend.domain.ai.type.FileType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

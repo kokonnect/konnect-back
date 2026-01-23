@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.dto;
+package com.example.konnect_backend.domain.ai.type;
 
 import com.example.konnect_backend.domain.user.entity.status.Language;
 

@@ -1,8 +1,9 @@
 package com.example.konnect_backend.domain.ai.dto.response;
 
-import com.example.konnect_backend.domain.ai.dto.DocumentType;
-import com.example.konnect_backend.domain.ai.dto.FileType;
-import com.example.konnect_backend.domain.ai.dto.TargetLanguage;
+import com.example.konnect_backend.domain.ai.type.DocumentType;
+import com.example.konnect_backend.domain.ai.type.FileType;
+import com.example.konnect_backend.domain.ai.type.ProcessingStatus;
+import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -58,11 +59,4 @@ public class DocumentAnalysisResponse {
     // 처리 정보
     private Long processingTimeMs;
     private String ocrMethod;
-
-    // 처리 상태 enum
-    public enum ProcessingStatus {
-        COMPLETED,      // 모든 단계 완료
-        PARTIAL,        // 일부 단계만 완료 (재시도 가능)
-        FAILED          // 실패
-    }
 }

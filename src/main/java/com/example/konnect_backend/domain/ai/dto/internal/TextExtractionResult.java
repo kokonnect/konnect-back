@@ -21,14 +21,6 @@ public class TextExtractionResult {
 
     private String errorMessage;
 
-    public static TextExtractionResult success(String text, String ocrMethod) {
-        return TextExtractionResult.builder()
-                .text(text)
-                .ocrMethod(ocrMethod)
-                .success(true)
-                .build();
-    }
-
     public static TextExtractionResult success(String text, String ocrMethod, int pageCount) {
         return TextExtractionResult.builder()
                 .text(text)
