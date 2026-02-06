@@ -53,9 +53,10 @@ public class DocumentAnalysisPipeline {
     private final DocumentAnalysisRepository documentAnalysisRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
-    private final AnalysisCacheService cacheService;
     private final StepLogService stepLogService;
     private final GeminiService geminiService;
+
+    private final IdGenerator idGenerator;
 
     private static final int TOTAL_STEPS = 7;
 
@@ -65,7 +66,7 @@ public class DocumentAnalysisPipeline {
     @Transactional
     public DocumentAnalysisResponse analyze(MultipartFile file, FileType fileType) {
         long startTime = System.currentTimeMillis();
-        Long analysisId = cacheService.generateAnalysisId();
+        Long analysisId = idGenerator.newId();
 
         User user = getCurrentUser();
         TargetLanguage targetLanguage = getUserTargetLanguage(user);
@@ -81,24 +82,6 @@ public class DocumentAnalysisPipeline {
         context.addMetadata("analysisId", analysisId);
         context.addMetadata("fileName", file.getOriginalFilename());
         context.addMetadata("fileType", fileType.name());
-
-        return executePipeline(analysisId, file, fileType, user, context, startTime);
-    }
-
-    /**
-     * 실패한 분석 재시도
-     */
-    @Transactional
-    public DocumentAnalysisResponse retry(Long analysisId, MultipartFile file, FileType fileType) {
-        long startTime = System.currentTimeMillis();
-
-        PipelineContext context = cacheService.getContext(analysisId);
-        if (context == null) {
-            throw new DocumentAnalysisException(ErrorStatus.ANALYSIS_NOT_FOUND);
-        }
-
-        User user = getCurrentUser();
-        log.info("분석 재시도: analysisId={}, 완료단계={}", analysisId, context.getCompletedStage());
 
         return executePipeline(analysisId, file, fileType, user, context, startTime);
     }
@@ -129,43 +112,36 @@ public class DocumentAnalysisPipeline {
             currentStage = "TEXT_EXTRACTION";
             String extractedText = executeTextExtraction(file, fileType, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 3. 문서 유형 분류 - Step 2
             currentStage = "CLASSIFICATION";
             ClassificationResult classification = executeClassification(extractedText, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 4. 통합 정보 추출 - Step 3
             currentStage = "EXTRACTION";
             ExtractionResult extraction = executeExtraction(extractedText, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 5. 어려운 표현 추출 및 풀이 - Step 4
             currentStage = "DIFFICULT_EXPRESSIONS";
             List<DifficultExpressionDto> difficultExpressions = executeDifficultExpressionExtraction(extractedText, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 6. 쉬운 한국어로 재작성 - Step 5
             currentStage = "SIMPLIFICATION";
             String simplifiedKorean = executeSimplification(extractedText, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 7. 번역 (쉬운 한국어 기반) - Step 6
             currentStage = "TRANSLATION";
             String translatedText = executeTranslation(simplifiedKorean, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 8. 요약 (쉬운 한국어 기반) - Step 7
             currentStage = "SUMMARIZATION";
             String summary = executeSummarization(simplifiedKorean, context);
             completedStepCount++;
-            cacheService.saveContext(analysisId, context);
 
             // 9. DB 저장
             currentStage = "SAVE";
@@ -181,9 +157,6 @@ public class DocumentAnalysisPipeline {
             context.setCompletedStage(PipelineContext.PipelineStage.COMPLETED);
             long processingTime = System.currentTimeMillis() - startTime;
 
-            // 완료 시 캐시 삭제
-            cacheService.removeContext(analysisId);
-
             // 파이프라인 완료 시 총 토큰 사용량 로깅
             logTotalTokenUsage(analysisId, processingTime);
 
@@ -192,13 +165,11 @@ public class DocumentAnalysisPipeline {
                     extractedText, difficultExpressions, simplifiedKorean, translatedText, summary, processingTime);
 
         } catch (DocumentAnalysisException | TextExtractionException e) {
-            cacheService.saveContext(analysisId, context);
             return buildPartialResponse(analysisId, file, fileType, context, currentStage, e.getMessage(),
                     System.currentTimeMillis() - startTime);
 
         } catch (Exception e) {
             log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId, currentStage, e);
-            cacheService.saveContext(analysisId, context);
             return buildPartialResponse(analysisId, file, fileType, context, currentStage, e.getMessage(),
                     System.currentTimeMillis() - startTime);
         }
