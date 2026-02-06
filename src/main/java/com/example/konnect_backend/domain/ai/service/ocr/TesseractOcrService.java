@@ -2,18 +2,17 @@ package com.example.konnect_backend.domain.ai.service.ocr;
 
 import com.example.konnect_backend.domain.ai.exception.OcrException;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
 import org.springframework.beans.factory.annotation.Value;
-// import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import javax.imageio.ImageIO;
 
 @Slf4j
 @Service("tesseractOcr")

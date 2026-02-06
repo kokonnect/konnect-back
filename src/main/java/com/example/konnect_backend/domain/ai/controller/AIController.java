@@ -1,10 +1,10 @@
 package com.example.konnect_backend.domain.ai.controller;
 
-import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
 import com.example.konnect_backend.domain.ai.service.DocumentHistoryService;
 import com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline;
+import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.ApiResponse;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;

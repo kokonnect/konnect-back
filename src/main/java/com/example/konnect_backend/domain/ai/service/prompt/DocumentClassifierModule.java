@@ -1,9 +1,9 @@
 package com.example.konnect_backend.domain.ai.service.prompt;
 
-import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.domain.ai.dto.response.ClassificationResult;
 import com.example.konnect_backend.domain.ai.service.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
