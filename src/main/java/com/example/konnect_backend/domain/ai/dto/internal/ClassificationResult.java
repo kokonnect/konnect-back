@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.dto.response;
+package com.example.konnect_backend.domain.ai.dto.internal;
 
 import com.example.konnect_backend.domain.ai.type.DocumentType;
 import lombok.AllArgsConstructor;

@@ -2,7 +2,7 @@ package com.example.konnect_backend.domain.ai.service.pipeline;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
-import com.example.konnect_backend.domain.ai.dto.response.ClassificationResult;
+import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
@@ -12,7 +12,6 @@ import com.example.konnect_backend.domain.ai.service.extractor.ImageTextExtracto
 import com.example.konnect_backend.domain.ai.service.extractor.PdfTextExtractor;
 import com.example.konnect_backend.domain.ai.service.prompt.*;
 import com.example.konnect_backend.domain.ai.type.FileType;
-import com.example.konnect_backend.domain.ai.type.ProcessingStatus;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.document.entity.Document;
 import com.example.konnect_backend.domain.document.entity.DocumentAnalysis;
@@ -161,17 +160,11 @@ public class DocumentAnalysisPipeline {
             logTotalTokenUsage(analysisId, processingTime);
 
             // 11. 성공 응답 생성
-            return buildSuccessResponse(analysisId, file, fileType, context, classification, extraction,
-                    extractedText, difficultExpressions, simplifiedKorean, translatedText, summary, processingTime);
-
-        } catch (DocumentAnalysisException | TextExtractionException e) {
-            return buildPartialResponse(analysisId, file, fileType, context, currentStage, e.getMessage(),
-                    System.currentTimeMillis() - startTime);
-
+            return buildSuccessResponse(analysisId, file, extraction,
+                    extractedText, difficultExpressions, translatedText, summary);
         } catch (Exception e) {
             log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId, currentStage, e);
-            return buildPartialResponse(analysisId, file, fileType, context, currentStage, e.getMessage(),
-                    System.currentTimeMillis() - startTime);
+            throw e;
         }
     }
 
@@ -553,95 +546,18 @@ public class DocumentAnalysisPipeline {
     /**
      * 성공 응답 생성
      */
-    private DocumentAnalysisResponse buildSuccessResponse(Long analysisId, MultipartFile file, FileType fileType,
-                                                          PipelineContext context,
-                                                          ClassificationResult classification, ExtractionResult extraction,
+    private DocumentAnalysisResponse buildSuccessResponse(Long analysisId, MultipartFile file,
+                                                          ExtractionResult extraction,
                                                           String extractedText, List<DifficultExpressionDto> difficultExpressions,
-                                                          String simplifiedKorean, String translatedText, String summary,
-                                                          long processingTime) {
+                                                          String translatedText, String summary) {
         return DocumentAnalysisResponse.builder()
                 .analysisId(analysisId)
-                .status(
-                    com.example.konnect_backend.domain.ai.type.ProcessingStatus.COMPLETED)
                 .extractedText(extractedText)
-                .simplifiedKorean(simplifiedKorean)
                 .difficultExpressions(difficultExpressions)
                 .translatedText(translatedText)
                 .summary(summary)
-                .documentType(classification.getDocumentType())
-                .documentTypeName(classification.getDocumentType().getDisplayName())
-                .classificationConfidence(classification.getConfidence())
-                .classificationKeywords(classification.getKeywords())
-                .classificationReasoning(classification.getReasoning())
                 .extractedSchedules(extraction.getSchedules())
-                .extractedInfo(extraction.getAdditionalInfo())
                 .originalFileName(file.getOriginalFilename())
-                .fileType(fileType)
-                .targetLanguage(context.getTargetLanguage())
-                .targetLanguageName(context.getTargetLanguage().getDisplayName())
-                .fileSize(file.getSize())
-                .pageCount(context.getPageCount())
-                .processingTimeMs(processingTime)
-                .ocrMethod(context.getOcrMethod())
                 .build();
-    }
-
-    /**
-     * 부분 완료/실패 응답 생성 (재시도 가능)
-     */
-    private DocumentAnalysisResponse buildPartialResponse(Long analysisId, MultipartFile file, FileType fileType,
-                                                          PipelineContext context, String failedStage, String errorMessage,
-                                                          long processingTime) {
-        DocumentAnalysisResponse.DocumentAnalysisResponseBuilder builder = DocumentAnalysisResponse.builder()
-                .analysisId(analysisId)
-                .status(ProcessingStatus.PARTIAL)
-                .failedStage(failedStage)
-                .errorMessage(errorMessage)
-                .originalFileName(file.getOriginalFilename())
-                .fileType(fileType)
-                .targetLanguage(context.getTargetLanguage())
-                .targetLanguageName(context.getTargetLanguage().getDisplayName())
-                .fileSize(file.getSize())
-                .processingTimeMs(processingTime)
-                .ocrMethod(context.getOcrMethod());
-
-        // 완료된 단계까지의 데이터 포함
-        if (context.getOriginalText() != null) {
-            builder.extractedText(context.getOriginalText());
-            builder.pageCount(context.getPageCount());
-        }
-
-        if (context.getClassificationResult() != null) {
-            ClassificationResult cr = context.getClassificationResult();
-            builder.documentType(cr.getDocumentType())
-                    .documentTypeName(cr.getDocumentType().getDisplayName())
-                    .classificationConfidence(cr.getConfidence())
-                    .classificationKeywords(cr.getKeywords())
-                    .classificationReasoning(cr.getReasoning());
-        }
-
-        if (context.getExtractionResult() != null) {
-            ExtractionResult er = context.getExtractionResult();
-            builder.extractedSchedules(er.getSchedules())
-                    .extractedInfo(er.getAdditionalInfo());
-        }
-
-        if (context.getDifficultExpressions() != null) {
-            builder.difficultExpressions(context.getDifficultExpressions());
-        }
-
-        if (context.getSimplifiedKorean() != null) {
-            builder.simplifiedKorean(context.getSimplifiedKorean());
-        }
-
-        if (context.getTranslatedText() != null) {
-            builder.translatedText(context.getTranslatedText());
-        }
-
-        if (context.getSummary() != null) {
-            builder.summary(context.getSummary());
-        }
-
-        return builder.build();
     }
 }

@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.ai.service.pipeline;
 
-import com.example.konnect_backend.domain.ai.dto.response.ClassificationResult;
+import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.example.konnect_backend.domain.document.entity.AnalysisStepLog;
 import com.example.konnect_backend.domain.document.entity.DocumentAnalysis;
