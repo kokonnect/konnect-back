@@ -58,10 +58,7 @@ public class DocumentAnalysisPipeline {
     private final IdGenerator idGenerator;
 
     private static final int TOTAL_STEPS = 7;
-
-    /**
-     * 새 문서 분석 시작
-     */
+    
     @Transactional
     public DocumentAnalysisResponse analyze(MultipartFile file, FileType fileType) {
         long startTime = System.currentTimeMillis();
@@ -91,7 +88,6 @@ public class DocumentAnalysisPipeline {
     private DocumentAnalysisResponse executePipeline(Long analysisId, MultipartFile file, FileType fileType,
                                                      User user, PipelineContext context, long startTime) {
         String currentStage = "INIT";
-        int completedStepCount = 0;
         DocumentAnalysis savedAnalysis = null;
 
         // 파이프라인 시작 시 토큰 사용량 초기화
@@ -110,37 +106,30 @@ public class DocumentAnalysisPipeline {
             // 2. 텍스트 추출 (OCR) - Step 1
             currentStage = "TEXT_EXTRACTION";
             String extractedText = executeTextExtraction(file, fileType, context);
-            completedStepCount++;
 
             // 3. 문서 유형 분류 - Step 2
             currentStage = "CLASSIFICATION";
             ClassificationResult classification = executeClassification(extractedText, context);
-            completedStepCount++;
 
             // 4. 통합 정보 추출 - Step 3
             currentStage = "EXTRACTION";
             ExtractionResult extraction = executeExtraction(extractedText, context);
-            completedStepCount++;
 
             // 5. 어려운 표현 추출 및 풀이 - Step 4
             currentStage = "DIFFICULT_EXPRESSIONS";
             List<DifficultExpressionDto> difficultExpressions = executeDifficultExpressionExtraction(extractedText, context);
-            completedStepCount++;
 
             // 6. 쉬운 한국어로 재작성 - Step 5
             currentStage = "SIMPLIFICATION";
             String simplifiedKorean = executeSimplification(extractedText, context);
-            completedStepCount++;
 
             // 7. 번역 (쉬운 한국어 기반) - Step 6
             currentStage = "TRANSLATION";
             String translatedText = executeTranslation(simplifiedKorean, context);
-            completedStepCount++;
 
             // 8. 요약 (쉬운 한국어 기반) - Step 7
             currentStage = "SUMMARIZATION";
             String summary = executeSummarization(simplifiedKorean, context);
-            completedStepCount++;
 
             // 9. DB 저장
             currentStage = "SAVE";
