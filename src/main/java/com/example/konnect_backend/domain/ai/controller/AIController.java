@@ -45,25 +45,6 @@ public class AIController {
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
 
-    @PostMapping(value = "/analyze/retry", consumes = "multipart/form-data")
-    @Operation(summary = "가정통신문 분석 재시도",
-            description = "이전에 실패한 분석을 재시도합니다. analysisId와 동일한 파일을 전송해야 합니다. " +
-                    "이미 완료된 단계는 건너뛰고 실패한 단계부터 재개합니다. " +
-                    "캐시 유효기간은 30분입니다.")
-    public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> retryAnalysis(
-            @RequestParam("analysisId") Long analysisId,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("fileType") FileType fileType) {
-
-        validateFileInput(file, fileType);
-
-        log.info("문서 분석 재시도 API 요청: analysisId={}, 파일={}", analysisId, file.getOriginalFilename());
-
-        DocumentAnalysisResponse response = documentAnalysisPipeline.retry(analysisId, file, fileType);
-
-        return ResponseEntity.ok(ApiResponse.onSuccess(response));
-    }
-
     @GetMapping("/history")
     @Operation(summary = "분석 내역 조회", description = "사용자의 최근 문서 분석 내역을 최대 10개까지 조회합니다.")
     public ResponseEntity<ApiResponse<TranslationHistoryResponse>> getHistory() {
