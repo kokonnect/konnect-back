@@ -1,8 +1,8 @@
 package com.example.konnect_backend.domain.ai.service.pipeline;
 
+import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
-import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
@@ -29,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashMap;

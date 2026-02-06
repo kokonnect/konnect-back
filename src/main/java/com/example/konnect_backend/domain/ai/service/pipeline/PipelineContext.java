@@ -1,7 +1,7 @@
 package com.example.konnect_backend.domain.ai.service.pipeline;
 
-import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
+import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;

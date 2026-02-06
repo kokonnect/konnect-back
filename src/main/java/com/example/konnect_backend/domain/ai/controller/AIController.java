@@ -39,9 +39,6 @@ public class AIController {
 
         validateFileInput(multipartFile, fileType);
 
-        log.info("문서 분석 API 요청: {}, 타입: {}",
-            multipartFile.getOriginalFilename(), fileType);
-
         UploadFile file;
         try {
             file = new UploadFile(
