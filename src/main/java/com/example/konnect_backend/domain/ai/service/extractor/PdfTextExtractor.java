@@ -2,6 +2,7 @@ package com.example.konnect_backend.domain.ai.service.extractor;
 
 import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
+import com.example.konnect_backend.domain.ai.service.model.UploadFile;
 import com.example.konnect_backend.domain.ai.service.ocr.OcrService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
@@ -36,9 +37,9 @@ public class PdfTextExtractor implements TextExtractorService {
     private final OcrService ocrService;
 
     @Override
-    public TextExtractionResult extract(MultipartFile file) {
+    public TextExtractionResult extract(UploadFile file) {
         try {
-            log.info("PDF 텍스트 추출 시작: {}", file.getOriginalFilename());
+            log.info("PDF 텍스트 추출 시작: {}", file.originalName());
 
             // 1단계: PagePdfDocumentReader로 텍스트 추출 시도
             TextExtractionResult pdfReaderResult = extractWithPdfReader(file);
@@ -65,9 +66,9 @@ public class PdfTextExtractor implements TextExtractorService {
         }
     }
 
-    private TextExtractionResult extractWithPdfReader(MultipartFile file) {
+    private TextExtractionResult extractWithPdfReader(UploadFile file) {
         try {
-            ByteArrayResource resource = new ByteArrayResource(file.getBytes());
+            ByteArrayResource resource = new ByteArrayResource(file.inputStream().readAllBytes());
 
             PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder()
                     .withPageTopMargin(0)
@@ -101,9 +102,9 @@ public class PdfTextExtractor implements TextExtractorService {
         }
     }
 
-    private TextExtractionResult extractWithOcr(MultipartFile file) {
+    private TextExtractionResult extractWithOcr(UploadFile file) {
         try {
-            byte[] pdfBytes = file.getBytes();
+            byte[] pdfBytes = file.inputStream().readAllBytes();
             List<BufferedImage> images = convertPdfToImages(pdfBytes);
 
             StringBuilder combinedText = new StringBuilder();

@@ -10,6 +10,7 @@ import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
 import com.example.konnect_backend.domain.ai.service.GeminiService;
 import com.example.konnect_backend.domain.ai.service.extractor.ImageTextExtractor;
 import com.example.konnect_backend.domain.ai.service.extractor.PdfTextExtractor;
+import com.example.konnect_backend.domain.ai.service.model.UploadFile;
 import com.example.konnect_backend.domain.ai.service.prompt.*;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
@@ -60,7 +61,7 @@ public class DocumentAnalysisPipeline {
     private static final int TOTAL_STEPS = 7;
     
     @Transactional
-    public DocumentAnalysisResponse analyze(MultipartFile file, FileType fileType) {
+    public DocumentAnalysisResponse analyze(UploadFile file, FileType fileType) {
         long startTime = System.currentTimeMillis();
         Long analysisId = idGenerator.newId();
 
@@ -76,7 +77,7 @@ public class DocumentAnalysisPipeline {
 
         context.addMetadata("useSimpleLanguage", true);
         context.addMetadata("analysisId", analysisId);
-        context.addMetadata("fileName", file.getOriginalFilename());
+        context.addMetadata("fileName", file.originalName());
         context.addMetadata("fileType", fileType.name());
 
         return executePipeline(analysisId, file, fileType, user, context, startTime);
@@ -85,7 +86,7 @@ public class DocumentAnalysisPipeline {
     /**
      * 파이프라인 실행 (신규/재시도 공통)
      */
-    private DocumentAnalysisResponse executePipeline(Long analysisId, MultipartFile file, FileType fileType,
+    private DocumentAnalysisResponse executePipeline(Long analysisId, UploadFile file, FileType fileType,
                                                      User user, PipelineContext context, long startTime) {
         String currentStage = "INIT";
         DocumentAnalysis savedAnalysis = null;
@@ -96,12 +97,9 @@ public class DocumentAnalysisPipeline {
         try {
             log.info("문서 분석 파이프라인 시작: analysisId={}, 파일={}, 타입={}, 언어={}",
                     analysisId,
-                    file.getOriginalFilename(),
+                    file.originalName(),
                     fileType,
                     context.getTargetLanguage().getDisplayName());
-
-            // 1. 파일 검증
-            validateFile(file, fileType);
 
             // 2. 텍스트 추출 (OCR) - Step 1
             currentStage = "TEXT_EXTRACTION";
@@ -313,7 +311,7 @@ public class DocumentAnalysisPipeline {
     }
 
     // 단계별 실행 메서드 (기존과 동일하지만 통합 Extractor 사용)
-    private String executeTextExtraction(MultipartFile file, FileType fileType, PipelineContext context) {
+    private String executeTextExtraction(UploadFile file, FileType fileType, PipelineContext context) {
         if (context.getCompletedStage().ordinal() >= PipelineContext.PipelineStage.TEXT_EXTRACTED.ordinal()
                 && context.getOriginalText() != null) {
             log.debug("텍스트 추출 단계 스킵 (이미 완료)");
@@ -424,30 +422,7 @@ public class DocumentAnalysisPipeline {
         return TargetLanguage.fromLanguage(user.getLanguage());
     }
 
-    private void validateFile(MultipartFile file, FileType fileType) {
-        if (file.isEmpty()) {
-            throw new DocumentAnalysisException(ErrorStatus.FILE_EMPTY);
-        }
-
-        if (file.getOriginalFilename() == null) {
-            throw new DocumentAnalysisException(ErrorStatus.FILE_NAME_MISSING);
-        }
-
-        if (file.getSize() > 20 * 1024 * 1024) {
-            throw new DocumentAnalysisException(ErrorStatus.FILE_SIZE_EXCEEDED);
-        }
-
-        String contentType = file.getContentType();
-        if (fileType == FileType.PDF && !"application/pdf".equals(contentType)) {
-            throw new DocumentAnalysisException(ErrorStatus.INVALID_PDF_FILE);
-        }
-
-        if (fileType == FileType.IMAGE && (contentType == null || !contentType.startsWith("image/"))) {
-            throw new DocumentAnalysisException(ErrorStatus.INVALID_IMAGE_FILE);
-        }
-    }
-
-    private TextExtractionResult extractText(MultipartFile file, FileType fileType, PipelineContext context) {
+    private TextExtractionResult extractText(UploadFile file, FileType fileType, PipelineContext context) {
         log.debug("텍스트 추출 시작: {}", fileType);
 
         TextExtractionResult result;
@@ -467,7 +442,7 @@ public class DocumentAnalysisPipeline {
         return result;
     }
 
-    private DocumentAnalysis saveAnalysisResult(MultipartFile file, FileType fileType, User user,
+    private DocumentAnalysis saveAnalysisResult(UploadFile file, FileType fileType, User user,
                                                  PipelineContext context, ClassificationResult classification,
                                                  ExtractionResult extraction, String extractedText,
                                                  String translatedText, String summary) {
@@ -479,14 +454,14 @@ public class DocumentAnalysisPipeline {
 
             Document document = Document.builder()
                     .user(user)
-                    .title(file.getOriginalFilename())
+                    .title(file.originalName())
                     .description("문서 분석: " + classification.getDocumentType().getDisplayName())
                     .build();
 
             DocumentFile documentFile = DocumentFile.builder()
-                    .fileName(file.getOriginalFilename())
+                    .fileName(file.originalName())
                     .fileType(fileType.name())
-                    .fileSize(file.getSize())
+                    .fileSize(file.size())
                     .extractedText(extractedText)
                     .pageCount(context.getPageCount() != null ? context.getPageCount() : 1)
                     .build();
@@ -535,7 +510,7 @@ public class DocumentAnalysisPipeline {
     /**
      * 성공 응답 생성
      */
-    private DocumentAnalysisResponse buildSuccessResponse(Long analysisId, MultipartFile file,
+    private DocumentAnalysisResponse buildSuccessResponse(Long analysisId, UploadFile file,
                                                           ExtractionResult extraction,
                                                           String extractedText, List<DifficultExpressionDto> difficultExpressions,
                                                           String translatedText, String summary) {
@@ -546,7 +521,7 @@ public class DocumentAnalysisPipeline {
                 .translatedText(translatedText)
                 .summary(summary)
                 .extractedSchedules(extraction.getSchedules())
-                .originalFileName(file.getOriginalFilename())
+                .originalFileName(file.originalName())
                 .build();
     }
 }

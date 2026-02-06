@@ -1,16 +1,11 @@
 package com.example.konnect_backend.domain.ai.dto.response;
 
-import com.example.konnect_backend.domain.ai.type.DocumentType;
-import com.example.konnect_backend.domain.ai.type.FileType;
-import com.example.konnect_backend.domain.ai.type.ProcessingStatus;
-import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder

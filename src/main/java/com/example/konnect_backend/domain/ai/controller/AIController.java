@@ -3,6 +3,7 @@ package com.example.konnect_backend.domain.ai.controller;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
 import com.example.konnect_backend.domain.ai.service.DocumentHistoryService;
+import com.example.konnect_backend.domain.ai.service.model.UploadFile;
 import com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.ApiResponse;
@@ -16,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
@@ -26,19 +29,28 @@ public class AIController {
     private final DocumentAnalysisPipeline documentAnalysisPipeline;
     private final DocumentHistoryService documentHistoryService;
 
-    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-
     @PostMapping(value = "/analyze", consumes = "multipart/form-data")
     @Operation(summary = "가정통신문 분석",
-            description = "가정통신문(PDF/이미지)을 분석하여 문서 유형 분류, 일정 추출, 번역, 요약을 수행합니다. " +
-                    "사용자 설정 언어로 자동 번역됩니다. 중간에 실패 시 analysisId를 사용하여 재시도할 수 있습니다.")
+               description = "가정통신문(PDF/이미지)을 분석하여 문서 유형 분류, 일정 추출, 번역, 요약을 수행합니다. " +
+                   "사용자 설정 언어로 자동 번역됩니다. 중간에 실패 시 analysisId를 사용하여 재시도할 수 있습니다.")
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocument(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("fileType") FileType fileType) {
+        @RequestParam("file") MultipartFile multipartFile,
+        @RequestParam("fileType") FileType fileType) {
 
-        validateFileInput(file, fileType);
+        validateFileInput(multipartFile, fileType);
 
-        log.info("문서 분석 API 요청: {}, 타입: {}", file.getOriginalFilename(), fileType);
+        log.info("문서 분석 API 요청: {}, 타입: {}",
+            multipartFile.getOriginalFilename(), fileType);
+
+        UploadFile file;
+        try {
+            file = new UploadFile(
+                multipartFile.getOriginalFilename(),
+                multipartFile.getContentType(), multipartFile.getSize(),
+                multipartFile.getInputStream());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         DocumentAnalysisResponse response = documentAnalysisPipeline.analyze(file, fileType);
 
@@ -57,12 +69,9 @@ public class AIController {
             throw new GeneralException(ErrorStatus.FILE_EMPTY);
         }
 
-        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
+        if (file.getOriginalFilename() == null || file.getOriginalFilename()
+                                                      .isBlank()) {
             throw new GeneralException(ErrorStatus.FILE_NAME_MISSING);
-        }
-
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new GeneralException(ErrorStatus.FILE_SIZE_EXCEEDED);
         }
 
         if (fileType == null) {
@@ -70,11 +79,13 @@ public class AIController {
         }
 
         String contentType = file.getContentType();
-        if (fileType == FileType.PDF && !"application/pdf".equals(contentType)) {
+        if (fileType == FileType.PDF && !"application/pdf".equals(
+            contentType)) {
             throw new GeneralException(ErrorStatus.INVALID_PDF_FILE);
         }
 
-        if (fileType == FileType.IMAGE && (contentType == null || !contentType.startsWith("image/"))) {
+        if (fileType == FileType.IMAGE && (contentType == null || !contentType.startsWith(
+            "image/"))) {
             throw new GeneralException(ErrorStatus.INVALID_IMAGE_FILE);
         }
     }

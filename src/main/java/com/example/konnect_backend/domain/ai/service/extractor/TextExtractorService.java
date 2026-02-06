@@ -1,11 +1,11 @@
 package com.example.konnect_backend.domain.ai.service.extractor;
 
 import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
-import org.springframework.web.multipart.MultipartFile;
+import com.example.konnect_backend.domain.ai.service.model.UploadFile;
 
 public interface TextExtractorService {
 
-    TextExtractionResult extract(MultipartFile file);
+    TextExtractionResult extract(UploadFile file);
 
     boolean supports(String mimeType);
 }

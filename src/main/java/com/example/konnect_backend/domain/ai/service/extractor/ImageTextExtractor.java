@@ -2,6 +2,7 @@ package com.example.konnect_backend.domain.ai.service.extractor;
 
 import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
+import com.example.konnect_backend.domain.ai.service.model.UploadFile;
 import com.example.konnect_backend.domain.ai.service.ocr.OcrService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
@@ -17,16 +18,16 @@ public class ImageTextExtractor implements TextExtractorService {
     private final OcrService ocrService;
 
     @Override
-    public TextExtractionResult extract(MultipartFile file) {
+    public TextExtractionResult extract(UploadFile file) {
         try {
-            log.info("이미지 텍스트 추출 시작: {}", file.getOriginalFilename());
+            log.info("이미지 텍스트 추출 시작: {}", file.originalName());
 
-            String mimeType = file.getContentType();
+            String mimeType = file.contentType();
             if (!supports(mimeType)) {
                 throw new TextExtractionException(ErrorStatus.INVALID_IMAGE_FILE);
             }
 
-            byte[] imageBytes = file.getBytes();
+            byte[] imageBytes = file.inputStream().readAllBytes();
             String extractedText = ocrService.extractText(imageBytes, mimeType);
 
             if (extractedText == null || extractedText.trim().isEmpty()) {
