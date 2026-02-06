@@ -62,6 +62,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/ai/analyze").permitAll() // 로컬 테스트 편의를 위해 허용
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(o -> o
