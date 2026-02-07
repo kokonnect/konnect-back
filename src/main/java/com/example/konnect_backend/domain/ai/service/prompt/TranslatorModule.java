@@ -1,7 +1,7 @@
 package com.example.konnect_backend.domain.ai.service.prompt;
 
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
-import com.example.konnect_backend.domain.ai.service.GeminiService;
+import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.Getter;

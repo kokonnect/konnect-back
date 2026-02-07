@@ -1,6 +1,7 @@
-package com.example.konnect_backend.domain.ai.service.ocr;
+package com.example.konnect_backend.domain.ai.infra;
 
 import com.example.konnect_backend.domain.ai.exception.OcrException;
+import com.example.konnect_backend.domain.ai.service.textextractor.ocr.OcrService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +46,7 @@ public class TesseractOcrService implements OcrService {
     @Override
     public String extractText(byte[] imageBytes, String mimeType) {
         try {
-            log.info("Tesseract OCR 시작, 이미지 크기: {} bytes, MIME: {}", imageBytes.length, mimeType);
+            log.info("Tesseract OCR 시작, 이미지 크기: {} bytes, MIME: {}", imageBytes.length);
 
             // 이미지 바이트 -> BufferedImage 변환
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));

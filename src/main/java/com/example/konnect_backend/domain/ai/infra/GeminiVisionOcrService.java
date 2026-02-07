@@ -1,7 +1,7 @@
-package com.example.konnect_backend.domain.ai.service.ocr;
+package com.example.konnect_backend.domain.ai.infra;
 
 import com.example.konnect_backend.domain.ai.exception.OcrException;
-import com.example.konnect_backend.domain.ai.service.GeminiService;
+import com.example.konnect_backend.domain.ai.service.textextractor.ocr.OcrService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
+
+import static com.example.konnect_backend.domain.ai.service.prompt.OcrPrompt.OCR_PROMPT;
 
 /**
  * Gemini Vision OCR 서비스
@@ -34,21 +36,6 @@ public class GeminiVisionOcrService implements OcrService {
 
     private static final double TEMPERATURE = 0.1;  // 정확한 텍스트 추출 위해 낮은 온도
     private static final int MAX_TOKENS = 8000;     // 긴 문서 텍스트 추출을 위해 충분한 토큰
-
-    private static final String OCR_PROMPT = """
-            이 이미지에서 모든 텍스트를 추출해주세요.
-
-            ## 추출 지침
-            - 이미지에 보이는 모든 텍스트를 정확하게 추출
-            - 원본 텍스트의 줄바꿈과 문단 구조 유지
-            - 표가 있는 경우 텍스트 내용만 추출 (표 형식 유지 불필요)
-            - 손글씨도 가능한 한 정확하게 인식
-            - 텍스트가 없는 경우 빈 문자열 반환
-            - 추출된 텍스트만 출력하고 다른 설명은 하지 마세요
-
-            ## 출력 형식
-            추출된 텍스트를 그대로 출력
-            """;
 
     @Override
     public String extractText(byte[] imageBytes, String mimeType) {

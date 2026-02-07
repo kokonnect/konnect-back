@@ -2,7 +2,7 @@ package com.example.konnect_backend.domain.ai.service.prompt;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.ExtractedScheduleDto;
-import com.example.konnect_backend.domain.ai.service.GeminiService;
+import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.core.type.TypeReference;

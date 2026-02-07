@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.service.ocr;
+package com.example.konnect_backend.domain.ai.service.textextractor.ocr;
 
 public interface OcrService {
 
@@ -7,7 +7,8 @@ public interface OcrService {
     boolean supports(String mimeType);
 
     /**
-     * OCR 서비스 이름 반환
+     * OCR 서비스의 이름을 반환합니다. 기본적으로 클래스 이름을 반환합니다.
+     * @return OCR 서비스의 이름 (기본 클래스 이름)
      */
     default String getServiceName() {
         return this.getClass().getSimpleName();

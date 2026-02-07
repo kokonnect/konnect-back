@@ -2,16 +2,13 @@ package com.example.konnect_backend.domain.ai.service.pipeline;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
-import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
-import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
-import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
-import com.example.konnect_backend.domain.ai.service.GeminiService;
-import com.example.konnect_backend.domain.ai.service.extractor.ImageTextExtractor;
-import com.example.konnect_backend.domain.ai.service.extractor.PdfTextExtractor;
-import com.example.konnect_backend.domain.ai.service.model.UploadFile;
+import com.example.konnect_backend.domain.ai.infra.GeminiService;
+import com.example.konnect_backend.domain.ai.model.vo.TextExtractionResult;
+import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.service.prompt.*;
+import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.document.entity.Document;
@@ -40,8 +37,7 @@ import java.util.List;
 @Slf4j
 public class DocumentAnalysisPipeline {
 
-    private final ImageTextExtractor imageTextExtractor;
-    private final PdfTextExtractor pdfTextExtractor;
+    private final TextExtractorFacade textExtractorFacade;
     private final DocumentClassifierModule classifierModule;
     private final UnifiedExtractorModule unifiedExtractorModule;
     private final DifficultExpressionExtractorModule difficultExpressionExtractorModule;
@@ -61,7 +57,7 @@ public class DocumentAnalysisPipeline {
     private static final int TOTAL_STEPS = 7;
 
     @Transactional
-    public DocumentAnalysisResponse analyze(UploadFile file, FileType fileType, Long requesterId) {
+    public DocumentAnalysisResponse analyze(UploadFile file, Long requesterId) {
         Long analysisId = idGenerator.newId();
         User user = getUser(requesterId);
         TargetLanguage targetLanguage = getTargetLanguage(user);
@@ -73,13 +69,12 @@ public class DocumentAnalysisPipeline {
         context.addMetadata("useSimpleLanguage", true);
         context.addMetadata("analysisId", analysisId);
         context.addMetadata("fileName", file.originalName());
-        context.addMetadata("fileType", fileType.name());
+        context.addMetadata("fileType", file.fileType().name());
 
-        return executePipeline(analysisId, file, fileType, user, context);
+        return executePipeline(analysisId, file, user, context);
     }
 
-    private DocumentAnalysisResponse executePipeline(Long analysisId, UploadFile file,
-                                                     FileType fileType, User user,
+    private DocumentAnalysisResponse executePipeline(Long analysisId, UploadFile file, User user,
                                                      PipelineContext context) {
         long startTime = System.currentTimeMillis();
         String currentStage = "INIT";
@@ -90,11 +85,11 @@ public class DocumentAnalysisPipeline {
 
         try {
             log.info("문서 분석 파이프라인 시작: analysisId={}, 파일={}, 타입={}, 언어={}", analysisId,
-                file.originalName(), fileType, context.getTargetLanguage().getDisplayName());
+                file.originalName(), file.fileType(), context.getTargetLanguage().getDisplayName());
 
             // 2. 텍스트 추출 (OCR) - Step 1
             currentStage = "TEXT_EXTRACTION";
-            String extractedText = executeTextExtraction(file, fileType, context);
+            String extractedText = executeTextExtraction(file, context);
 
             // 3. 문서 유형 분류 - Step 2
             currentStage = "CLASSIFICATION";
@@ -123,7 +118,7 @@ public class DocumentAnalysisPipeline {
 
             // 9. DB 저장
             currentStage = "SAVE";
-            savedAnalysis = saveAnalysisResult(file, fileType, user, context, classification,
+            savedAnalysis = saveAnalysisResult(file, file.fileType(), user, context, classification,
                 extraction, extractedText, translatedText, summary);
 
             // 10. 단계별 로그 저장
@@ -144,6 +139,172 @@ public class DocumentAnalysisPipeline {
         } catch (Exception e) {
             log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId, currentStage, e);
             throw e;
+        }
+    }
+
+    private User getUser(Long userId) {
+        // 미인증 사용자 (테스트용)
+        if (userId == null) {
+            return null;
+        }
+        // UserService가 현재 인증 정보를 직접 꺼내써서 userId로 직접 접근하는 게 의미 상 명확
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+    }
+
+    private TargetLanguage getTargetLanguage(User user) {
+        // 미인증 사용자 (테스트용)
+        if (user == null) {
+            return TargetLanguage.KOREAN;
+        }
+
+        Language targetLanguage = user.getLanguage();
+        if (targetLanguage == null) {
+            return TargetLanguage.KOREAN;
+        }
+
+        return TargetLanguage.fromLanguage(user.getLanguage());
+    }
+
+    /**
+     * 파이프라인 완료 시 총 토큰 사용량 로깅
+     */
+    private void logTotalTokenUsage(Long analysisId, long processingTime) {
+        try {
+            GeminiService.SessionTokenUsage tokenUsage = geminiService.getSessionTokenUsage();
+            double processingSeconds = processingTime / 1000.0;
+
+            log.info("═══════════════════════════════════════════════════════════════");
+            log.info("📊 파이프라인 완료 - 토큰 사용량 요약");
+            log.info("═══════════════════════════════════════════════════════════════");
+            log.info("   분석 ID: {}", analysisId);
+            log.info("   처리 시간: {}ms ({}초)", processingTime,
+                String.format("%.1f", processingSeconds));
+            log.info("───────────────────────────────────────────────────────────────");
+            log.info("   입력 토큰 (Input):  {}", String.format("%,d", tokenUsage.inputTokens()));
+            log.info("   출력 토큰 (Output): {}", String.format("%,d", tokenUsage.outputTokens()));
+            log.info("   총 토큰 (Total):    {}", String.format("%,d", tokenUsage.totalTokens()));
+            log.info("═══════════════════════════════════════════════════════════════");
+        } catch (Exception e) {
+            log.debug("토큰 사용량 로깅 실패 (무시): {}", e.getMessage());
+        }
+    }
+
+    // 단계별 실행 메서드 (기존과 동일하지만 통합 Extractor 사용)
+    private String executeTextExtraction(UploadFile file, PipelineContext context) {
+        TextExtractionResult extractionResult = extractText(file);
+        String extractedText = extractionResult.getText();
+        context.setOriginalText(extractedText);
+        context.setOcrMethod(extractionResult.getOcrMethod());
+        context.setPageCount(extractionResult.getPageCount());
+        context.setCompletedStage(PipelineContext.PipelineStage.TEXT_EXTRACTED);
+        return extractedText;
+    }
+
+    private ClassificationResult executeClassification(String extractedText,
+                                                       PipelineContext context) {
+        ClassificationResult classification = classifierModule.process(extractedText, context);
+        context.setClassificationResult(classification);
+        context.setDocumentType(classification.getDocumentType());
+        context.setCompletedStage(PipelineContext.PipelineStage.CLASSIFIED);
+        return classification;
+    }
+
+    private ExtractionResult executeExtraction(String extractedText, PipelineContext context) {
+        // 통합 Extractor 사용 (문서 유형과 무관하게 모든 정보 추출 시도)
+        ExtractionResult extraction = unifiedExtractorModule.process(extractedText, context);
+        context.setExtractionResult(extraction);
+        context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
+        return extraction;
+    }
+
+    private List<DifficultExpressionDto> executeDifficultExpressionExtraction(String extractedText,
+                                                                              PipelineContext context) {
+        List<DifficultExpressionDto> expressions = difficultExpressionExtractorModule.process(
+            extractedText, context);
+        context.setDifficultExpressions(expressions);
+        context.setCompletedStage(PipelineContext.PipelineStage.DIFFICULT_EXPRESSIONS_EXTRACTED);
+        return expressions;
+    }
+
+    private String executeSimplification(String extractedText, PipelineContext context) {
+        String simplifiedKorean = koreanSimplifierModule.process(extractedText, context);
+        context.setSimplifiedKorean(simplifiedKorean);
+        context.setCompletedStage(PipelineContext.PipelineStage.SIMPLIFIED);
+        return simplifiedKorean;
+    }
+
+    private String executeTranslation(String simplifiedKorean, PipelineContext context) {
+        String translatedText = translatorModule.process(simplifiedKorean, context);
+        context.setTranslatedText(translatedText);
+        context.setCompletedStage(PipelineContext.PipelineStage.TRANSLATED);
+        return translatedText;
+    }
+
+    private String executeSummarization(String simplifiedKorean, PipelineContext context) {
+        String summary = summarizerModule.process(simplifiedKorean, context);
+        context.setSummary(summary);
+        context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
+        return summary;
+    }
+
+    private TextExtractionResult extractText(UploadFile file) {
+        log.debug("텍스트 추출 시작: {}", file.fileType());
+        TextExtractionResult result = textExtractorFacade.extract(file);
+        log.debug("텍스트 추출 완료: {}자, 방식: {}", result.getText().length(), result.getOcrMethod());
+        return result;
+    }
+
+    private DocumentAnalysis saveAnalysisResult(UploadFile file, FileType fileType, User user,
+                                                PipelineContext context,
+                                                ClassificationResult classification,
+                                                ExtractionResult extraction, String extractedText,
+                                                String translatedText, String summary) {
+        try {
+            if (user == null) {
+                log.info("비로그인 사용자 - DB 저장 건너뜀");
+                return null;
+            }
+
+            Document document = Document.builder().user(user).title(file.originalName())
+                .description("문서 분석: " + classification.getDocumentType().getDisplayName()).build();
+
+            DocumentFile documentFile = DocumentFile.builder().fileName(file.originalName())
+                .fileType(fileType.name()).fileSize(file.size()).extractedText(extractedText)
+                .pageCount(context.getPageCount() != null ? context.getPageCount() : 1).build();
+
+            DocumentTranslation documentTranslation = DocumentTranslation.builder()
+                .translatedLanguage(context.getTargetLanguage().getLanguageCode())
+                .translatedText(translatedText).summary(summary).build();
+
+            document.addDocumentFile(documentFile);
+            document.addTranslation(documentTranslation);
+            document = documentRepository.save(document);
+
+            String schedulesJson = objectMapper.writeValueAsString(extraction.getSchedules());
+            String additionalInfoJson = objectMapper.writeValueAsString(
+                extraction.getAdditionalInfo());
+            String keywordsStr = classification.getKeywords() != null ? String.join(",",
+                classification.getKeywords()) : "";
+
+            DocumentAnalysis analysis = DocumentAnalysis.builder().document(document)
+                .documentType(classification.getDocumentType())
+                .classificationConfidence(classification.getConfidence())
+                .classificationKeywords(keywordsStr)
+                .classificationReasoning(classification.getReasoning())
+                .extractedSchedulesJson(schedulesJson).additionalInfoJson(additionalInfoJson)
+                .processingTimeMs(System.currentTimeMillis()).ocrMethod(context.getOcrMethod())
+                .totalSteps(TOTAL_STEPS).completedSteps(0)  // 로그 저장 후 업데이트
+                .build();
+
+            analysis = documentAnalysisRepository.save(analysis);
+            log.info("DB 저장 완료: documentId={}, analysisId={}", document.getId(), analysis.getId());
+
+            return analysis;
+
+        } catch (Exception e) {
+            log.error("분석 결과 저장 실패", e);
+            return null;
         }
     }
 
@@ -244,184 +405,6 @@ public class DocumentAnalysisPipeline {
 
         } catch (Exception e) {
             log.error("단계별 로그 저장 실패", e);
-        }
-    }
-
-    private User getUser(Long userId) {
-        User user;
-        // 미인증 사용자 (테스트용)
-        if (userId == null) {
-            user = null;
-        }
-        // UserService가 현재 인증 정보를 직접 꺼내써서 userId로 직접 접근하는 게 의미 상 명확
-        user = userRepository.findById(userId)
-            .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
-
-        return user;
-    }
-
-    private TargetLanguage getTargetLanguage(User user) {
-        Language targetLanguage = user.getLanguage();
-        if (targetLanguage == null) {
-            return TargetLanguage.KOREAN;
-        }
-
-        return TargetLanguage.fromLanguage(user.getLanguage());
-    }
-
-    /**
-     * 파이프라인 완료 시 총 토큰 사용량 로깅
-     */
-    private void logTotalTokenUsage(Long analysisId, long processingTime) {
-        try {
-            GeminiService.SessionTokenUsage tokenUsage = geminiService.getSessionTokenUsage();
-            double processingSeconds = processingTime / 1000.0;
-
-            log.info("═══════════════════════════════════════════════════════════════");
-            log.info("📊 파이프라인 완료 - 토큰 사용량 요약");
-            log.info("═══════════════════════════════════════════════════════════════");
-            log.info("   분석 ID: {}", analysisId);
-            log.info("   처리 시간: {}ms ({}초)", processingTime,
-                String.format("%.1f", processingSeconds));
-            log.info("───────────────────────────────────────────────────────────────");
-            log.info("   입력 토큰 (Input):  {}", String.format("%,d", tokenUsage.inputTokens()));
-            log.info("   출력 토큰 (Output): {}", String.format("%,d", tokenUsage.outputTokens()));
-            log.info("   총 토큰 (Total):    {}", String.format("%,d", tokenUsage.totalTokens()));
-            log.info("═══════════════════════════════════════════════════════════════");
-        } catch (Exception e) {
-            log.debug("토큰 사용량 로깅 실패 (무시): {}", e.getMessage());
-        }
-    }
-
-    // 단계별 실행 메서드 (기존과 동일하지만 통합 Extractor 사용)
-    private String executeTextExtraction(UploadFile file, FileType fileType,
-                                         PipelineContext context) {
-        TextExtractionResult extractionResult = extractText(file, fileType);
-        String extractedText = extractionResult.getText();
-        context.setOriginalText(extractedText);
-        context.setOcrMethod(extractionResult.getOcrMethod());
-        context.setPageCount(extractionResult.getPageCount());
-        context.setCompletedStage(PipelineContext.PipelineStage.TEXT_EXTRACTED);
-        return extractedText;
-    }
-
-    private ClassificationResult executeClassification(String extractedText,
-                                                       PipelineContext context) {
-        ClassificationResult classification = classifierModule.process(extractedText, context);
-        context.setClassificationResult(classification);
-        context.setDocumentType(classification.getDocumentType());
-        context.setCompletedStage(PipelineContext.PipelineStage.CLASSIFIED);
-        return classification;
-    }
-
-    private ExtractionResult executeExtraction(String extractedText, PipelineContext context) {
-        // 통합 Extractor 사용 (문서 유형과 무관하게 모든 정보 추출 시도)
-        ExtractionResult extraction = unifiedExtractorModule.process(extractedText, context);
-        context.setExtractionResult(extraction);
-        context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
-        return extraction;
-    }
-
-    private List<DifficultExpressionDto> executeDifficultExpressionExtraction(String extractedText,
-                                                                              PipelineContext context) {
-        List<DifficultExpressionDto> expressions = difficultExpressionExtractorModule.process(
-            extractedText, context);
-        context.setDifficultExpressions(expressions);
-        context.setCompletedStage(PipelineContext.PipelineStage.DIFFICULT_EXPRESSIONS_EXTRACTED);
-        return expressions;
-    }
-
-    private String executeSimplification(String extractedText, PipelineContext context) {
-        String simplifiedKorean = koreanSimplifierModule.process(extractedText, context);
-        context.setSimplifiedKorean(simplifiedKorean);
-        context.setCompletedStage(PipelineContext.PipelineStage.SIMPLIFIED);
-        return simplifiedKorean;
-    }
-
-    private String executeTranslation(String simplifiedKorean, PipelineContext context) {
-        String translatedText = translatorModule.process(simplifiedKorean, context);
-        context.setTranslatedText(translatedText);
-        context.setCompletedStage(PipelineContext.PipelineStage.TRANSLATED);
-        return translatedText;
-    }
-
-    private String executeSummarization(String simplifiedKorean, PipelineContext context) {
-        String summary = summarizerModule.process(simplifiedKorean, context);
-        context.setSummary(summary);
-        context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
-        return summary;
-    }
-
-    private TextExtractionResult extractText(UploadFile file, FileType fileType) {
-        log.debug("텍스트 추출 시작: {}", fileType);
-
-        TextExtractionResult result;
-        if (fileType == FileType.IMAGE) {
-            result = imageTextExtractor.extract(file);
-        } else if (fileType == FileType.PDF) {
-            result = pdfTextExtractor.extract(file);
-        } else {
-            throw new DocumentAnalysisException(ErrorStatus.UNSUPPORTED_FILE_TYPE);
-        }
-
-        if (!result.isSuccess() || result.getText() == null || result.getText().trim().isEmpty()) {
-            throw new TextExtractionException(ErrorStatus.TEXT_EXTRACTION_FAILED);
-        }
-
-        log.debug("텍스트 추출 완료: {}자, 방식: {}", result.getText().length(), result.getOcrMethod());
-        return result;
-    }
-
-    private DocumentAnalysis saveAnalysisResult(UploadFile file, FileType fileType, User user,
-                                                PipelineContext context,
-                                                ClassificationResult classification,
-                                                ExtractionResult extraction, String extractedText,
-                                                String translatedText, String summary) {
-        try {
-            if (user == null) {
-                log.info("비로그인 사용자 - DB 저장 건너뜀");
-                return null;
-            }
-
-            Document document = Document.builder().user(user).title(file.originalName())
-                .description("문서 분석: " + classification.getDocumentType().getDisplayName()).build();
-
-            DocumentFile documentFile = DocumentFile.builder().fileName(file.originalName())
-                .fileType(fileType.name()).fileSize(file.size()).extractedText(extractedText)
-                .pageCount(context.getPageCount() != null ? context.getPageCount() : 1).build();
-
-            DocumentTranslation documentTranslation = DocumentTranslation.builder()
-                .translatedLanguage(context.getTargetLanguage().getLanguageCode())
-                .translatedText(translatedText).summary(summary).build();
-
-            document.addDocumentFile(documentFile);
-            document.addTranslation(documentTranslation);
-            document = documentRepository.save(document);
-
-            String schedulesJson = objectMapper.writeValueAsString(extraction.getSchedules());
-            String additionalInfoJson = objectMapper.writeValueAsString(
-                extraction.getAdditionalInfo());
-            String keywordsStr = classification.getKeywords() != null ? String.join(",",
-                classification.getKeywords()) : "";
-
-            DocumentAnalysis analysis = DocumentAnalysis.builder().document(document)
-                .documentType(classification.getDocumentType())
-                .classificationConfidence(classification.getConfidence())
-                .classificationKeywords(keywordsStr)
-                .classificationReasoning(classification.getReasoning())
-                .extractedSchedulesJson(schedulesJson).additionalInfoJson(additionalInfoJson)
-                .processingTimeMs(System.currentTimeMillis()).ocrMethod(context.getOcrMethod())
-                .totalSteps(TOTAL_STEPS).completedSteps(0)  // 로그 저장 후 업데이트
-                .build();
-
-            analysis = documentAnalysisRepository.save(analysis);
-            log.info("DB 저장 완료: documentId={}, analysisId={}", document.getId(), analysis.getId());
-
-            return analysis;
-
-        } catch (Exception e) {
-            log.error("분석 결과 저장 실패", e);
-            return null;
         }
     }
 

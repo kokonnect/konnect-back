@@ -1,9 +1,10 @@
-package com.example.konnect_backend.domain.ai.service.extractor;
+package com.example.konnect_backend.domain.ai.service.textextractor;
 
-import com.example.konnect_backend.domain.ai.dto.internal.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
-import com.example.konnect_backend.domain.ai.service.model.UploadFile;
-import com.example.konnect_backend.domain.ai.service.ocr.OcrService;
+import com.example.konnect_backend.domain.ai.model.vo.TextExtractionResult;
+import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
+import com.example.konnect_backend.domain.ai.service.textextractor.ocr.OcrService;
+import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +27,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PdfTextExtractor implements TextExtractorService {
+public class PdfTextExtractor implements TextExtractor {
 
     private static final int MIN_TEXT_LENGTH = 50;
     private static final String PDF_READER_METHOD = "PDF_READER";
@@ -43,40 +44,37 @@ public class PdfTextExtractor implements TextExtractorService {
             // 1단계: PagePdfDocumentReader로 텍스트 추출 시도
             TextExtractionResult pdfReaderResult = extractWithPdfReader(file);
 
-            if (pdfReaderResult.isSuccess() &&
-                pdfReaderResult.getText() != null &&
-                pdfReaderResult.getText().trim().length() >= MIN_TEXT_LENGTH) {
-
-                log.info("PDF Reader로 텍스트 추출 성공: {} 글자, {} 페이지",
-                        pdfReaderResult.getText().length(),
-                        pdfReaderResult.getPageCount());
+            if (!pdfReaderResult.isFailed() && isShorterOrEqualToMaxLength(
+                pdfReaderResult.getText())) {
+                log.info("PDF Reader로 텍스트 추출 성공: {} 글자, {} 페이지", pdfReaderResult.getText().length(),
+                    pdfReaderResult.getPageCount());
                 return pdfReaderResult;
             }
 
             // 2단계: 텍스트 부족 또는 실패 시 Gemini Vision OCR로 폴백
-            log.info("PDF Reader 텍스트 부족, Gemini Vision OCR로 폴백");
+            log.info("PDF Reader 텍스트 부족: {} 글자, {} 페이지, Gemini Vision OCR로 폴백",
+                pdfReaderResult.getText().length(), pdfReaderResult.getPageCount());
             return extractWithOcr(file);
 
-        } catch (TextExtractionException e) {
-            throw e;
         } catch (Exception e) {
             log.error("PDF 텍스트 추출 중 오류", e);
             throw new TextExtractionException(ErrorStatus.PDF_PROCESSING_FAILED);
         }
     }
 
+    private boolean isShorterOrEqualToMaxLength(String text) {
+        return text.trim().length() <= MIN_TEXT_LENGTH;
+    }
+
+    // 다음 단계 진행을 위해 예외 대신
     private TextExtractionResult extractWithPdfReader(UploadFile file) {
         try {
-            ByteArrayResource resource = new ByteArrayResource(file.inputStream().readAllBytes());
+            ByteArrayResource resource = new ByteArrayResource(file.bytes());
 
-            PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder()
-                    .withPageTopMargin(0)
-                    .withPageExtractedTextFormatter(
-                            ExtractedTextFormatter.builder()
-                                    .withNumberOfTopTextLinesToDelete(0)
-                                    .build())
-                    .withPagesPerDocument(1)
-                    .build();
+            PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder().withPageTopMargin(0)
+                .withPageExtractedTextFormatter(
+                    ExtractedTextFormatter.builder().withNumberOfTopTextLinesToDelete(0).build())
+                .withPagesPerDocument(1).build();
 
             PagePdfDocumentReader pdfReader = new PagePdfDocumentReader(resource, config);
             List<Document> documents = pdfReader.read();
@@ -85,15 +83,11 @@ public class PdfTextExtractor implements TextExtractorService {
                 return TextExtractionResult.failure("PDF에서 페이지를 읽을 수 없음");
             }
 
-            String extractedText = documents.stream()
-                    .map(Document::getContent)
-                    .collect(Collectors.joining("\n\n"));
+            String extractedText = documents.stream().map(Document::getContent)
+                .collect(Collectors.joining("\n\n"));
 
-            return TextExtractionResult.success(
-                    extractedText != null ? extractedText.trim() : "",
-                    PDF_READER_METHOD,
-                    documents.size()
-            );
+            return TextExtractionResult.success(extractedText != null ? extractedText.trim() : "",
+                PDF_READER_METHOD, documents.size());
 
         } catch (Exception e) {
             log.warn("PagePdfDocumentReader 실패: {}", e.getMessage());
@@ -103,7 +97,7 @@ public class PdfTextExtractor implements TextExtractorService {
 
     private TextExtractionResult extractWithOcr(UploadFile file) {
         try {
-            byte[] pdfBytes = file.inputStream().readAllBytes();
+            byte[] pdfBytes = file.bytes();
             List<BufferedImage> images = convertPdfToImages(pdfBytes);
 
             StringBuilder combinedText = new StringBuilder();
@@ -122,7 +116,6 @@ public class PdfTextExtractor implements TextExtractorService {
             }
 
             return TextExtractionResult.success(result, OCR_METHOD, images.size());
-
         } catch (Exception e) {
             log.error("PDF OCR 처리 실패", e);
             throw new TextExtractionException(ErrorStatus.PDF_PROCESSING_FAILED);
@@ -130,22 +123,19 @@ public class PdfTextExtractor implements TextExtractorService {
     }
 
     private List<BufferedImage> convertPdfToImages(byte[] pdfBytes) throws IOException {
-        try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(pdfBytes);
-             PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdfBytes)) {
+        try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(
+            pdfBytes); PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdfBytes)) {
             PDFRenderer renderer = new PDFRenderer(document);
             int pageCount = document.getNumberOfPages();
 
-            return java.util.stream.IntStream.range(0, pageCount)
-                    .mapToObj(page -> {
-                        try {
-                            return renderer.renderImageWithDPI(page, 300);
-                        } catch (IOException e) {
-                            log.error("페이지 {} 렌더링 실패", page, e);
-                            return null;
-                        }
-                    })
-                    .filter(img -> img != null)
-                    .collect(Collectors.toList());
+            return java.util.stream.IntStream.range(0, pageCount).mapToObj(page -> {
+                try {
+                    return renderer.renderImageWithDPI(page, 300);
+                } catch (IOException e) {
+                    log.error("페이지 {} 렌더링 실패", page, e);
+                    return null;
+                }
+            }).filter(img -> img != null).collect(Collectors.toList());
         }
     }
 
@@ -156,7 +146,7 @@ public class PdfTextExtractor implements TextExtractorService {
     }
 
     @Override
-    public boolean supports(String mimeType) {
-        return "application/pdf".equals(mimeType);
+    public boolean supports(FileType fileType) {
+        return fileType.equals(FileType.PDF);
     }
 }

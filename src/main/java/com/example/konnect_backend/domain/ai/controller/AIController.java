@@ -2,8 +2,8 @@ package com.example.konnect_backend.domain.ai.controller;
 
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.dto.response.TranslationHistoryResponse;
+import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.service.DocumentHistoryService;
-import com.example.konnect_backend.domain.ai.service.model.UploadFile;
 import com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.ApiResponse;
@@ -31,9 +31,7 @@ public class AIController {
     private final DocumentHistoryService documentHistoryService;
 
     @PostMapping(value = "/analyze", consumes = "multipart/form-data")
-    @Operation(summary = "가정통신문 분석",
-               description = "가정통신문(PDF/이미지)을 분석하여 문서 유형 분류, 일정 추출, 번역, 요약을 수행합니다. " +
-                   "사용자 설정 언어로 자동 번역됩니다. 중간에 실패 시 analysisId를 사용하여 재시도할 수 있습니다.")
+    @Operation(summary = "가정통신문 분석", description = "가정통신문(PDF/이미지)을 분석하여 문서 유형 분류, 일정 추출, 번역, 요약을 수행합니다. " + "사용자 설정 언어로 자동 번역됩니다. 중간에 실패 시 analysisId를 사용하여 재시도할 수 있습니다.")
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocument(
         @RequestParam("file") MultipartFile multipartFile,
         @RequestParam("fileType") FileType fileType) {
@@ -43,15 +41,14 @@ public class AIController {
 
         UploadFile file;
         try {
-            file = new UploadFile(
-                multipartFile.getOriginalFilename(),
+            file = new UploadFile(multipartFile.getOriginalFilename(), fileType,
                 multipartFile.getContentType(), multipartFile.getSize(),
-                multipartFile.getInputStream());
+                multipartFile.getInputStream().readAllBytes());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        DocumentAnalysisResponse response = documentAnalysisPipeline.analyze(file, fileType, userId);
+        DocumentAnalysisResponse response = documentAnalysisPipeline.analyze(file, userId);
 
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
@@ -68,8 +65,7 @@ public class AIController {
             throw new GeneralException(ErrorStatus.FILE_EMPTY);
         }
 
-        if (file.getOriginalFilename() == null || file.getOriginalFilename()
-                                                      .isBlank()) {
+        if (file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()) {
             throw new GeneralException(ErrorStatus.FILE_NAME_MISSING);
         }
 
@@ -78,8 +74,7 @@ public class AIController {
         }
 
         String contentType = file.getContentType();
-        if (fileType == FileType.PDF && !"application/pdf".equals(
-            contentType)) {
+        if (fileType == FileType.PDF && !"application/pdf".equals(contentType)) {
             throw new GeneralException(ErrorStatus.INVALID_PDF_FILE);
         }
 

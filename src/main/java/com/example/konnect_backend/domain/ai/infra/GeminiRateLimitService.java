@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.service;
+package com.example.konnect_backend.domain.ai.infra;
 
 import com.example.konnect_backend.domain.ai.config.GeminiConfig;
 import com.github.benmanes.caffeine.cache.Cache;

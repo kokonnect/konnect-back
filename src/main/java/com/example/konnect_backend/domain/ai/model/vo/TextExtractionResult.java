@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.dto.internal;
+package com.example.konnect_backend.domain.ai.model.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,5 +35,13 @@ public class TextExtractionResult {
                 .success(false)
                 .errorMessage(errorMessage)
                 .build();
+    }
+
+    public boolean isFailed() {
+        if (!success || text == null || text.trim().isEmpty()) {
+            return true;
+        }
+
+        return false;
     }
 }

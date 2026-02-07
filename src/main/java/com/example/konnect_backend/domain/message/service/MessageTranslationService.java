@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.message.service;
 
-import com.example.konnect_backend.domain.ai.service.GeminiService;
+import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.message.dto.request.MessageComposeRequest;
 import com.example.konnect_backend.domain.message.dto.response.MessageComposeResponse;
 import com.example.konnect_backend.domain.message.dto.response.MessageHistoryResponse;
