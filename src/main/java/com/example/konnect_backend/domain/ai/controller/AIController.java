@@ -9,6 +9,7 @@ import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.ApiResponse;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
+import com.example.konnect_backend.global.security.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class AIController {
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocument(
         @RequestParam("file") MultipartFile multipartFile,
         @RequestParam("fileType") FileType fileType) {
+        Long userId = SecurityUtil.getCurrentUserIdOrNull();
 
         validateFileInput(multipartFile, fileType);
 
@@ -49,7 +51,7 @@ public class AIController {
             throw new RuntimeException(e);
         }
 
-        DocumentAnalysisResponse response = documentAnalysisPipeline.analyze(file, fileType);
+        DocumentAnalysisResponse response = documentAnalysisPipeline.analyze(file, fileType, userId);
 
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }

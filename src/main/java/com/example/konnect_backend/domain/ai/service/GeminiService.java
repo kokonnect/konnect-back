@@ -283,13 +283,6 @@ public class GeminiService {
     }
 
     /**
-     * 마지막 API 호출 토큰 정보 조회
-     */
-    public TokenUsage getLastTokenUsage() {
-        return lastTokenUsage;
-    }
-
-    /**
      * 세션 토큰 사용량 초기화
      */
     public void resetSessionTokenUsage() {
