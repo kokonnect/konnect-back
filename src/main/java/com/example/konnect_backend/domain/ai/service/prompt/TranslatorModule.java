@@ -90,8 +90,9 @@ public class TranslatorModule implements PromptModule<String, String> {
                 throw new DocumentAnalysisException(ErrorStatus.TRANSLATION_FAILED);
             }
 
-            context.setTranslatedText(translatedText.trim());
             context.addLog("번역 완료: " + translatedText.length() + "자");
+            context.setTranslatedText(translatedText);
+            context.setCompletedStage(PipelineContext.PipelineStage.TRANSLATED);
 
             return translatedText.trim();
 

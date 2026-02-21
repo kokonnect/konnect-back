@@ -140,6 +140,9 @@ public class UnifiedExtractorModule implements PromptModule<String, ExtractionRe
             context.addLog(String.format("정보 추출 완료: %d개 일정, 추가정보 %d개 항목",
                     scheduleCount, result.getAdditionalInfo().size()));
 
+            context.setExtractionResult(result);
+            context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
+
             return result;
 
         } catch (Exception e) {

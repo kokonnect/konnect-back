@@ -90,7 +90,10 @@ public class DifficultExpressionExtractorModule implements PromptModule<String, 
             this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
 
             List<DifficultExpressionDto> expressions = parseResponse(response);
+
             context.addLog("어려운 표현 추출 완료: " + expressions.size() + "개");
+            context.setDifficultExpressions(expressions);
+            context.setCompletedStage(PipelineContext.PipelineStage.DIFFICULT_EXPRESSIONS_EXTRACTED);
 
             return expressions;
 

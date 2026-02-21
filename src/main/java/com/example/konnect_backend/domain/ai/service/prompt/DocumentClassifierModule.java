@@ -26,6 +26,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@Deprecated
 public class DocumentClassifierModule implements PromptModule<String, ClassificationResult> {
 
     private final GeminiService geminiService;

@@ -5,7 +5,6 @@ import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
-import com.example.konnect_backend.domain.ai.model.vo.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.service.prompt.*;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
@@ -38,7 +37,7 @@ import java.util.List;
 public class DocumentAnalysisPipeline {
 
     private final TextExtractorFacade textExtractorFacade;
-    private final DocumentClassifierModule classifierModule;
+    private final DocumentClassifierModule classifierModule; // 사용하지 않는 모듈이나 기존 로그와의 호환성을 위해 유지
     private final UnifiedExtractorModule unifiedExtractorModule;
     private final DifficultExpressionExtractorModule difficultExpressionExtractorModule;
     private final KoreanSimplifierModule koreanSimplifierModule;
@@ -89,32 +88,32 @@ public class DocumentAnalysisPipeline {
 
             // 2. 텍스트 추출 (OCR) - Step 1
             currentStage = "TEXT_EXTRACTION";
-            String extractedText = executeTextExtraction(file, context);
+            String extractedText = textExtractorFacade.extract(file, context).getText();
 
-            // 3. 문서 유형 분류 - Step 2
+            // 사용하지 않지만 로그 삭제작업
             currentStage = "CLASSIFICATION";
             ClassificationResult classification = executeClassification(extractedText, context);
 
             // 4. 통합 정보 추출 - Step 3
             currentStage = "EXTRACTION";
-            ExtractionResult extraction = executeExtraction(extractedText, context);
+            ExtractionResult extraction = unifiedExtractorModule.process(extractedText, context);
 
             // 5. 어려운 표현 추출 및 풀이 - Step 4
             currentStage = "DIFFICULT_EXPRESSIONS";
-            List<DifficultExpressionDto> difficultExpressions = executeDifficultExpressionExtraction(
+            List<DifficultExpressionDto> difficultExpressions = difficultExpressionExtractorModule.process(
                 extractedText, context);
 
             // 6. 쉬운 한국어로 재작성 - Step 5
             currentStage = "SIMPLIFICATION";
-            String simplifiedKorean = executeSimplification(extractedText, context);
+            String simplifiedKorean = koreanSimplifierModule.process(extractedText, context);
 
             // 7. 번역 (쉬운 한국어 기반) - Step 6
             currentStage = "TRANSLATION";
-            String translatedText = executeTranslation(simplifiedKorean, context);
+            String translatedText = translatorModule.process(simplifiedKorean, context);
 
             // 8. 요약 (쉬운 한국어 기반) - Step 7
             currentStage = "SUMMARIZATION";
-            String summary = executeSummarization(simplifiedKorean, context);
+            String summary = summarizerModule.process(simplifiedKorean, context);
 
             // 9. DB 저장
             currentStage = "SAVE";
@@ -190,17 +189,7 @@ public class DocumentAnalysisPipeline {
         }
     }
 
-    // 단계별 실행 메서드 (기존과 동일하지만 통합 Extractor 사용)
-    private String executeTextExtraction(UploadFile file, PipelineContext context) {
-        TextExtractionResult extractionResult = extractText(file);
-        String extractedText = extractionResult.getText();
-        context.setOriginalText(extractedText);
-        context.setOcrMethod(extractionResult.getOcrMethod());
-        context.setPageCount(extractionResult.getPageCount());
-        context.setCompletedStage(PipelineContext.PipelineStage.TEXT_EXTRACTED);
-        return extractedText;
-    }
-
+    @Deprecated // 사용하지 않는 모듈이나 기존 로그와의 호환성을 위해 유지
     private ClassificationResult executeClassification(String extractedText,
                                                        PipelineContext context) {
         ClassificationResult classification = classifierModule.process(extractedText, context);
@@ -208,51 +197,6 @@ public class DocumentAnalysisPipeline {
         context.setDocumentType(classification.getDocumentType());
         context.setCompletedStage(PipelineContext.PipelineStage.CLASSIFIED);
         return classification;
-    }
-
-    private ExtractionResult executeExtraction(String extractedText, PipelineContext context) {
-        // 통합 Extractor 사용 (문서 유형과 무관하게 모든 정보 추출 시도)
-        ExtractionResult extraction = unifiedExtractorModule.process(extractedText, context);
-        context.setExtractionResult(extraction);
-        context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
-        return extraction;
-    }
-
-    private List<DifficultExpressionDto> executeDifficultExpressionExtraction(String extractedText,
-                                                                              PipelineContext context) {
-        List<DifficultExpressionDto> expressions = difficultExpressionExtractorModule.process(
-            extractedText, context);
-        context.setDifficultExpressions(expressions);
-        context.setCompletedStage(PipelineContext.PipelineStage.DIFFICULT_EXPRESSIONS_EXTRACTED);
-        return expressions;
-    }
-
-    private String executeSimplification(String extractedText, PipelineContext context) {
-        String simplifiedKorean = koreanSimplifierModule.process(extractedText, context);
-        context.setSimplifiedKorean(simplifiedKorean);
-        context.setCompletedStage(PipelineContext.PipelineStage.SIMPLIFIED);
-        return simplifiedKorean;
-    }
-
-    private String executeTranslation(String simplifiedKorean, PipelineContext context) {
-        String translatedText = translatorModule.process(simplifiedKorean, context);
-        context.setTranslatedText(translatedText);
-        context.setCompletedStage(PipelineContext.PipelineStage.TRANSLATED);
-        return translatedText;
-    }
-
-    private String executeSummarization(String simplifiedKorean, PipelineContext context) {
-        String summary = summarizerModule.process(simplifiedKorean, context);
-        context.setSummary(summary);
-        context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
-        return summary;
-    }
-
-    private TextExtractionResult extractText(UploadFile file) {
-        log.debug("텍스트 추출 시작: {}", file.fileType());
-        TextExtractionResult result = textExtractorFacade.extract(file);
-        log.debug("텍스트 추출 완료: {}자, 방식: {}", result.getText().length(), result.getOcrMethod());
-        return result;
     }
 
     private DocumentAnalysis saveAnalysisResult(UploadFile file, FileType fileType, User user,

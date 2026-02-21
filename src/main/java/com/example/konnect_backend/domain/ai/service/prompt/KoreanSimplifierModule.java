@@ -81,6 +81,9 @@ public class KoreanSimplifierModule implements PromptModule<String, String> {
 
             context.addLog("쉬운 한국어 재작성 완료: " + simplifiedText.length() + "자");
 
+            context.setSimplifiedKorean(simplifiedText);
+            context.setCompletedStage(PipelineContext.PipelineStage.SIMPLIFIED);
+
             return simplifiedText.trim();
 
         } catch (DocumentAnalysisException e) {

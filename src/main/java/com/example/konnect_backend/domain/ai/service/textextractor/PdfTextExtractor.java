@@ -44,7 +44,7 @@ public class PdfTextExtractor implements TextExtractor {
             // 1단계: PagePdfDocumentReader로 텍스트 추출 시도
             TextExtractionResult pdfReaderResult = extractWithPdfReader(file);
 
-            if (!pdfReaderResult.isFailed() && isShorterOrEqualToMaxLength(
+            if (!pdfReaderResult.isFailed() && isLongerThanMinLength(
                 pdfReaderResult.getText())) {
                 log.info("PDF Reader로 텍스트 추출 성공: {} 글자, {} 페이지", pdfReaderResult.getText().length(),
                     pdfReaderResult.getPageCount());
@@ -62,8 +62,8 @@ public class PdfTextExtractor implements TextExtractor {
         }
     }
 
-    private boolean isShorterOrEqualToMaxLength(String text) {
-        return text.trim().length() <= MIN_TEXT_LENGTH;
+    private boolean isLongerThanMinLength(String text) {
+        return text.trim().length() > MIN_TEXT_LENGTH;
     }
 
     // 다음 단계 진행을 위해 예외 대신

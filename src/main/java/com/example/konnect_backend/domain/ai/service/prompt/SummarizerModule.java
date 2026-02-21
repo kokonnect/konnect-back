@@ -83,6 +83,8 @@ public class SummarizerModule implements PromptModule<String, String> {
             }
 
             context.addLog("요약 생성 완료: " + summary.length() + "자");
+            context.setSummary(summary);
+            context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
 
             return summary.trim();
 
