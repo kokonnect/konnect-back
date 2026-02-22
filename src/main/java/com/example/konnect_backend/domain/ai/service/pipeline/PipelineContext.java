@@ -22,7 +22,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class PipelineContext {
 
-    private String originalText;
+    private String extractedText;
 
     private String simplifiedKorean;
 

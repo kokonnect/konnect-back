@@ -102,7 +102,10 @@ public enum ErrorStatus implements BaseErrorCode {
 
     // School API Errors
     SCHOOL_API_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SCHOOL5001", "학교 정보 조회에 실패했습니다."),
-    INVALID_REGION_CODE(HttpStatus.BAD_REQUEST, "SCHOOL4001", "유효하지 않은 지역 코드입니다.");
+    INVALID_REGION_CODE(HttpStatus.BAD_REQUEST, "SCHOOL4001", "유효하지 않은 지역 코드입니다."),
+
+    // Prompt Errors
+    PromptNotFound(HttpStatus.NOT_FOUND, "PROMPT4001", "요청한 프롬프트 템플릿이 존재하지 않습니다.");
 
 
 

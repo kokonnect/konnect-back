@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.service.prompt;
+package com.example.konnect_backend.domain.ai.service.prompt.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.ExtractedScheduleDto;
@@ -31,7 +31,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class UnifiedExtractorModule implements PromptModule<String, ExtractionResult> {
+public class UnifiedExtractorModule implements PromptModule {
 
     private final GeminiService geminiService;
 
@@ -45,76 +45,10 @@ public class UnifiedExtractorModule implements PromptModule<String, ExtractionRe
     public static final double TEMPERATURE = 0.2;
     public static final int MAX_TOKENS = 3000;
 
-    private static final String UNIFIED_EXTRACTION_PROMPT = """
-            다음 학교 가정통신문에서 모든 관련 정보를 추출해주세요.
-            문서에 해당 정보가 없으면 빈 배열 또는 null로 남겨두세요.
-
-            ## 추출할 정보
-
-            ### 1. 일정 정보 (schedules)
-            날짜가 명시된 모든 일정/행사/이벤트/마감일을 추출합니다.
-            - title: 일정 제목 (20자 이내)
-            - memo: 관련 준비물, 장소, 주의사항
-            - startDate: 시작일시 (ISO 8601 형식: yyyy-MM-ddTHH:mm:ss)
-            - endDate: 종료일시
-            - isAllDay: 시간 정보가 없으면 true
-
-            ### 2. 행사 세부정보 (eventDetails) - 해당되는 경우만
-            - eventName: 행사명
-            - targetGrade: 참가 대상
-            - location: 장소
-            - cost: 비용 (숫자)
-            - requirements: 준비물 배열
-            - consentRequired: 동의서 필요 여부
-            - consentDeadline: 동의서 제출 마감일
-
-            ### 3. 벌점/규정 정보 (penaltyInfo) - 해당되는 경우만
-            - violations: 위반 항목 배열 [{item, points, description}]
-            - cumulativePenalties: 누적 처분 배열 [{points, action}]
-            - appealDeadline: 이의 제기 기한
-            - warnings: 주의사항 배열
-
-            ### 4. 공지 세부정보 (noticeDetails) - 해당되는 경우만
-            - title: 공지 제목
-            - requirements: 필요 서류/준비물 배열
-            - deadline: 마감일
-            - contact: 연락처
-            - warnings: 주의사항 배열
-
-            ## 중요: 출력 언어
-            - 모든 텍스트 필드는 반드시 %s로 작성해주세요
-            - 원본이 한국어여도 %s로 번역하여 출력
-
-            ## 출력 형식 규칙 (필수)
-            - 마크다운 문법 사용 금지 (###, **, *, -, |, 표 등 사용하지 않기)
-            - 모든 텍스트 필드는 순수 텍스트로만 작성
-
-            ## 오늘 날짜 (연도 추론에 활용)
-            %s
-
-            ## 분석할 텍스트
-            %s
-
-            ## 응답 형식 (JSON만 출력, 다른 텍스트 없이)
-            {
-              "schedules": [
-                {"title":"Final Exam","memo":"Required: ID card","startDate":"2024-12-15T09:00:00","endDate":"2024-12-17T12:00:00","isAllDay":false}
-              ],
-              "eventDetails": null,
-              "penaltyInfo": null,
-              "noticeDetails": {
-                "title":"Health Checkup",
-                "requirements":["Health form"],
-                "deadline":"2024-11-01",
-                "contact":"School nurse",
-                "warnings":[]
-              }
-            }
-            """;
-
     @Override
-    public ExtractionResult process(String text, PipelineContext context) {
+    public void process(String promptTemplate, PipelineContext context) {
         long startTime = System.currentTimeMillis();
+        String extractedText = context.getExtractedText();
         try {
             String targetLanguage = context.getTargetLanguage() != null
                     ? context.getTargetLanguage().getDisplayName()
@@ -122,11 +56,11 @@ public class UnifiedExtractorModule implements PromptModule<String, ExtractionRe
 
             log.info("통합 정보 추출 시작 (Gemini Primary 모델, 출력 언어: {})", targetLanguage);
 
-            String promptContent = String.format(UNIFIED_EXTRACTION_PROMPT,
+            String promptContent = String.format(promptTemplate,
                     targetLanguage,
                     targetLanguage,
                     LocalDate.now().toString(),
-                    PromptUtils.truncateText(text, 5000));
+                    PromptUtils.truncateText(extractedText, 5000));
 
             // Gemini Primary 모델 사용 (preferPrimary = true)
             String response = geminiService.generateContent(promptContent, TEMPERATURE, MAX_TOKENS, true);
@@ -142,20 +76,16 @@ public class UnifiedExtractorModule implements PromptModule<String, ExtractionRe
 
             context.setExtractionResult(result);
             context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
-
-            return result;
-
         } catch (Exception e) {
             this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
             log.error("통합 정보 추출 실패", e);
             context.addLog("정보 추출 실패: " + e.getMessage());
-            return ExtractionResult.empty();
         }
     }
 
     @Override
     public String getModuleName() {
-        return "UnifiedExtractor";
+        return "UNIFIED_EXTRACTION";
     }
 
     @SuppressWarnings("unchecked")

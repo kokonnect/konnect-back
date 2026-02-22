@@ -35,7 +35,7 @@ public class TextExtractorFacade {
 
                 log.debug("텍스트 추출 완료: {}자, 방식: {}", result.getText().length(), result.getOcrMethod());
 
-                context.setOriginalText(result.getText());
+                context.setExtractedText(result.getText());
                 context.setOcrMethod(result.getOcrMethod());
                 context.setPageCount(result.getPageCount());
                 context.setCompletedStage(PipelineContext.PipelineStage.TEXT_EXTRACTED);

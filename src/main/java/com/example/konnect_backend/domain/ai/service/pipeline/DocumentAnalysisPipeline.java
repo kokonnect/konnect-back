@@ -6,7 +6,8 @@ import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.service.prompt.*;
+import com.example.konnect_backend.domain.ai.service.prompt.PromptManager;
+import com.example.konnect_backend.domain.ai.service.prompt.module.*;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
@@ -35,6 +36,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class DocumentAnalysisPipeline {
+
+    private final PromptManager promptManager;
 
     private final TextExtractorFacade textExtractorFacade;
     private final DocumentClassifierModule classifierModule; // 사용하지 않는 모듈이나 기존 로그와의 호환성을 위해 유지
@@ -76,8 +79,16 @@ public class DocumentAnalysisPipeline {
     private DocumentAnalysisResponse executePipeline(Long analysisId, UploadFile file, User user,
                                                      PipelineContext context) {
         long startTime = System.currentTimeMillis();
-        String currentStage = "INIT";
+
+        final List<String> stages = List.of("INIT", "TEXT_EXTRACTION", "CLASSIFICATION",
+            "EXTRACTION", "DIFFICULT_EXPRESSIONS", "SIMPLIFICATION", "TRANSLATION", "SUMMARIZATION",
+            "SAVE");
+        int currentStage = 0;
         DocumentAnalysis savedAnalysis;
+
+        List<PromptModule> modules = List.of(classifierModule, unifiedExtractorModule,
+            difficultExpressionExtractorModule, koreanSimplifierModule, translatorModule,
+            summarizerModule);
 
         // 파이프라인 시작 시 토큰 사용량 초기화
         geminiService.resetSessionTokenUsage();
@@ -86,44 +97,22 @@ public class DocumentAnalysisPipeline {
             log.info("문서 분석 파이프라인 시작: analysisId={}, 파일={}, 타입={}, 언어={}", analysisId,
                 file.originalName(), file.fileType(), context.getTargetLanguage().getDisplayName());
 
-            // 2. 텍스트 추출 (OCR) - Step 1
-            currentStage = "TEXT_EXTRACTION";
-            String extractedText = textExtractorFacade.extract(file, context).getText();
+            currentStage++;
+            textExtractorFacade.extract(file, context).getText();
 
-            // 사용하지 않지만 로그 삭제작업
-            currentStage = "CLASSIFICATION";
-            ClassificationResult classification = executeClassification(extractedText, context);
+            for (PromptModule module : modules) {
+                currentStage++;
+                // Todo: 임시로 모든 버전 1 사용, 활성화된 버전으로 분기 가능하도록 변경 필요
+                String promptTemplate = promptManager.getPromptTemplate(module.getModuleName(), 1);
+                module.process(promptTemplate, context);
+            }
 
-            // 4. 통합 정보 추출 - Step 3
-            currentStage = "EXTRACTION";
-            ExtractionResult extraction = unifiedExtractorModule.process(extractedText, context);
-
-            // 5. 어려운 표현 추출 및 풀이 - Step 4
-            currentStage = "DIFFICULT_EXPRESSIONS";
-            List<DifficultExpressionDto> difficultExpressions = difficultExpressionExtractorModule.process(
-                extractedText, context);
-
-            // 6. 쉬운 한국어로 재작성 - Step 5
-            currentStage = "SIMPLIFICATION";
-            String simplifiedKorean = koreanSimplifierModule.process(extractedText, context);
-
-            // 7. 번역 (쉬운 한국어 기반) - Step 6
-            currentStage = "TRANSLATION";
-            String translatedText = translatorModule.process(simplifiedKorean, context);
-
-            // 8. 요약 (쉬운 한국어 기반) - Step 7
-            currentStage = "SUMMARIZATION";
-            String summary = summarizerModule.process(simplifiedKorean, context);
-
-            // 9. DB 저장
-            currentStage = "SAVE";
-            savedAnalysis = saveAnalysisResult(file, file.fileType(), user, context, classification,
-                extraction, extractedText, translatedText, summary);
+            currentStage++;
+            savedAnalysis = saveAnalysisResult(file, file.fileType(), user, context);
 
             // 10. 단계별 로그 저장
             if (savedAnalysis != null) {
-                saveStepLogs(savedAnalysis, context, extractedText, classification, extraction,
-                    difficultExpressions, simplifiedKorean, translatedText, summary);
+                saveStepLogs(savedAnalysis, context);
             }
 
             context.setCompletedStage(PipelineContext.PipelineStage.COMPLETED);
@@ -133,10 +122,9 @@ public class DocumentAnalysisPipeline {
             logTotalTokenUsage(analysisId, processingTime);
 
             // 11. 성공 응답 생성
-            return buildSuccessResponse(analysisId, file, extraction, extractedText,
-                difficultExpressions, translatedText, summary);
+            return buildSuccessResponse(analysisId, file, context);
         } catch (Exception e) {
-            log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId, currentStage, e);
+            log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId, stages.get(currentStage), e);
             throw e;
         }
     }
@@ -189,21 +177,14 @@ public class DocumentAnalysisPipeline {
         }
     }
 
-    @Deprecated // 사용하지 않는 모듈이나 기존 로그와의 호환성을 위해 유지
-    private ClassificationResult executeClassification(String extractedText,
-                                                       PipelineContext context) {
-        ClassificationResult classification = classifierModule.process(extractedText, context);
-        context.setClassificationResult(classification);
-        context.setDocumentType(classification.getDocumentType());
-        context.setCompletedStage(PipelineContext.PipelineStage.CLASSIFIED);
-        return classification;
-    }
-
     private DocumentAnalysis saveAnalysisResult(UploadFile file, FileType fileType, User user,
-                                                PipelineContext context,
-                                                ClassificationResult classification,
-                                                ExtractionResult extraction, String extractedText,
-                                                String translatedText, String summary) {
+                                                PipelineContext context) {
+        String extractedText = context.getExtractedText();
+        ClassificationResult classification = context.getClassificationResult();
+        ExtractionResult extraction = context.getExtractionResult();
+        String translatedText = context.getTranslatedText();
+        String summary = context.getSummary();
+
         try {
             if (user == null) {
                 log.info("비로그인 사용자 - DB 저장 건너뜀");
@@ -255,11 +236,15 @@ public class DocumentAnalysisPipeline {
     /**
      * 단계별 로그 저장
      */
-    private void saveStepLogs(DocumentAnalysis analysis, PipelineContext context,
-                              String extractedText, ClassificationResult classification,
-                              ExtractionResult extraction,
-                              List<DifficultExpressionDto> difficultExpressions,
-                              String simplifiedKorean, String translatedText, String summary) {
+    private void saveStepLogs(DocumentAnalysis analysis, PipelineContext context) {
+        String extractedText = context.getExtractedText();
+        ClassificationResult classification = context.getClassificationResult();
+        ExtractionResult extraction = context.getExtractionResult();
+        List<DifficultExpressionDto> difficultExpressions = context.getDifficultExpressions();
+        String simplifiedKorean = context.getSimplifiedKorean();
+        String translatedText = context.getTranslatedText();
+        String summary = context.getSummary();
+
         try {
             int stepOrder = 1;
 
@@ -273,7 +258,7 @@ public class DocumentAnalysisPipeline {
             stepLogService.logClassificationSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("CLASSIFICATION").stepOrder(stepOrder++)
                     .inputText(extractedText)
-                    .promptTemplate(DocumentClassifierModule.PROMPT_TEMPLATE_NAME)
+                    .promptTemplate("DocumentClassifierModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(DocumentClassifierModule.MODEL_NAME)
                     .temperature(DocumentClassifierModule.TEMPERATURE)
                     .maxTokens(DocumentClassifierModule.MAX_TOKENS).build(),
@@ -284,7 +269,7 @@ public class DocumentAnalysisPipeline {
             String extractionJson = objectMapper.writeValueAsString(extraction);
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("EXTRACTION").stepOrder(stepOrder++)
-                    .inputText(extractedText).promptTemplate("UNIFIED_EXTRACTION_PROMPT")
+                    .inputText(extractedText).promptTemplate("UNIFIED_EXTRACTION_PROMPT") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(UnifiedExtractorModule.MODEL_NAME)
                     .temperature(UnifiedExtractorModule.TEMPERATURE)
                     .maxTokens(UnifiedExtractorModule.MAX_TOKENS).build(),
@@ -297,7 +282,7 @@ public class DocumentAnalysisPipeline {
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("DIFFICULT_EXPRESSIONS")
                     .stepOrder(stepOrder++).inputText(extractedText)
-                    .promptTemplate(DifficultExpressionExtractorModule.PROMPT_TEMPLATE_NAME)
+                    .promptTemplate("DifficultExpressionExtractorModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(DifficultExpressionExtractorModule.MODEL_NAME)
                     .temperature(DifficultExpressionExtractorModule.TEMPERATURE)
                     .maxTokens(DifficultExpressionExtractorModule.MAX_TOKENS).build(),
@@ -309,7 +294,7 @@ public class DocumentAnalysisPipeline {
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("SIMPLIFICATION").stepOrder(stepOrder++)
                     .inputText(extractedText)
-                    .promptTemplate(KoreanSimplifierModule.PROMPT_TEMPLATE_NAME)
+                    .promptTemplate("KoreanSimplifierModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(KoreanSimplifierModule.MODEL_NAME)
                     .temperature(KoreanSimplifierModule.TEMPERATURE)
                     .maxTokens(KoreanSimplifierModule.MAX_TOKENS).build(),
@@ -321,7 +306,7 @@ public class DocumentAnalysisPipeline {
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("TRANSLATION").stepOrder(stepOrder++)
                     .inputText(simplifiedKorean)
-                    .promptTemplate(TranslatorModule.PROMPT_TEMPLATE_NAME)
+                    .promptTemplate("TranslatorModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(TranslatorModule.MODEL_NAME)
                     .temperature(TranslatorModule.TEMPERATURE)
                     .maxTokens(TranslatorModule.MAX_TOKENS).build(),
@@ -334,7 +319,7 @@ public class DocumentAnalysisPipeline {
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("SUMMARIZATION").stepOrder(stepOrder)
                     .inputText(simplifiedKorean)
-                    .promptTemplate(SummarizerModule.PROMPT_TEMPLATE_NAME)
+                    .promptTemplate("SummarizerModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(SummarizerModule.MODEL_NAME)
                     .temperature(SummarizerModule.TEMPERATURE)
                     .maxTokens(SummarizerModule.MAX_TOKENS).build(),
@@ -356,10 +341,13 @@ public class DocumentAnalysisPipeline {
      * 성공 응답 생성
      */
     private DocumentAnalysisResponse buildSuccessResponse(Long analysisId, UploadFile file,
-                                                          ExtractionResult extraction,
-                                                          String extractedText,
-                                                          List<DifficultExpressionDto> difficultExpressions,
-                                                          String translatedText, String summary) {
+                                                          PipelineContext context) {
+        String extractedText = context.getExtractedText();
+        ExtractionResult extraction = context.getExtractionResult();
+        List<DifficultExpressionDto> difficultExpressions = context.getDifficultExpressions();
+        String translatedText = context.getTranslatedText();
+        String summary = context.getSummary();
+
         return DocumentAnalysisResponse.builder().analysisId(analysisId)
             .extractedText(extractedText).difficultExpressions(difficultExpressions)
             .translatedText(translatedText).summary(summary)
