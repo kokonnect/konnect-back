@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.ai.entity;
 
+import com.example.konnect_backend.domain.ai.type.PromptStatus;
 import com.example.konnect_backend.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -33,6 +34,16 @@ public class PromptTemplate extends BaseEntity {
     @Lob // MySQL TEXT
     @Column(nullable = false)
     private String template;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private PromptStatus status;
+
+    @Column(nullable = false)
+    private Integer maxTokens;
+
+    @Column
+    private Long modelId;
 
     public PromptTemplate(String moduleName, Integer version, String template) {
         this.moduleName = moduleName;
