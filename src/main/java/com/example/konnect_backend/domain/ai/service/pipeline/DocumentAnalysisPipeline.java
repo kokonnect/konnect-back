@@ -4,9 +4,10 @@ import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
+import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.service.prompt.PromptManager;
+import com.example.konnect_backend.domain.ai.service.prompt.management.PromptLoader;
 import com.example.konnect_backend.domain.ai.service.prompt.module.*;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.FileType;
@@ -37,7 +38,7 @@ import java.util.List;
 @Slf4j
 public class DocumentAnalysisPipeline {
 
-    private final PromptManager promptManager;
+    private final PromptLoader promptLoader;
 
     private final TextExtractorFacade textExtractorFacade;
     private final DocumentClassifierModule classifierModule; // 사용하지 않는 모듈이나 기존 로그와의 호환성을 위해 유지
@@ -68,7 +69,6 @@ public class DocumentAnalysisPipeline {
             .completedStage(PipelineContext.PipelineStage.NONE).metadata(new HashMap<>())
             .processingLogs(new ArrayList<>()).build();
 
-        context.addMetadata("useSimpleLanguage", true);
         context.addMetadata("analysisId", analysisId);
         context.addMetadata("fileName", file.originalName());
         context.addMetadata("fileType", file.fileType().name());
@@ -102,8 +102,8 @@ public class DocumentAnalysisPipeline {
 
             for (PromptModule module : modules) {
                 currentStage++;
-                // Todo: 임시로 모든 버전 1 사용, 활성화된 버전으로 분기 가능하도록 변경 필요
-                String promptTemplate = promptManager.getPromptTemplate(module.getModuleName(), 1);
+                PromptTemplate promptTemplate = promptLoader.getActivePromptTemplate(
+                    module.getModuleName());
                 module.process(promptTemplate, context);
             }
 
@@ -124,7 +124,8 @@ public class DocumentAnalysisPipeline {
             // 11. 성공 응답 생성
             return buildSuccessResponse(analysisId, file, context);
         } catch (Exception e) {
-            log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId, stages.get(currentStage), e);
+            log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId,
+                stages.get(currentStage), e);
             throw e;
         }
     }
@@ -251,8 +252,8 @@ public class DocumentAnalysisPipeline {
             // 1. TEXT_EXTRACTION 로그
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("TEXT_EXTRACTION").stepOrder(stepOrder++)
-                    .promptTemplate("OCR").modelUsed(context.getOcrMethod()).build(), null, null,
-                String.format("텍스트 추출 완료: %d자", extractedText.length()), 0L);
+                    .promptTemplate("OCR").modelUsed(context.getOcrMethod()).build(), null,
+                String.format("텍스트 추출 완료: %d자", extractedText.length()));
 
             // 2. CLASSIFICATION 로그
             stepLogService.logClassificationSuccess(analysis,
@@ -262,20 +263,19 @@ public class DocumentAnalysisPipeline {
                     .modelUsed(DocumentClassifierModule.MODEL_NAME)
                     .temperature(DocumentClassifierModule.TEMPERATURE)
                     .maxTokens(DocumentClassifierModule.MAX_TOKENS).build(),
-                classifierModule.getLastRawResponse(), classification,
-                classifierModule.getLastProcessingTimeMs());
+                classification);
 
             // 3. EXTRACTION 로그
             String extractionJson = objectMapper.writeValueAsString(extraction);
             stepLogService.logSuccess(analysis,
                 StepLogService.StepInfo.builder().stepName("EXTRACTION").stepOrder(stepOrder++)
-                    .inputText(extractedText).promptTemplate("UNIFIED_EXTRACTION_PROMPT") // Todo 로그 삭제 예정으로 임시 처리
+                    .inputText(extractedText)
+                    .promptTemplate("UNIFIED_EXTRACTION_PROMPT") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(UnifiedExtractorModule.MODEL_NAME)
                     .temperature(UnifiedExtractorModule.TEMPERATURE)
-                    .maxTokens(UnifiedExtractorModule.MAX_TOKENS).build(),
-                unifiedExtractorModule.getLastRawResponse(), extractionJson,
-                String.format("추출 완료: %d개 일정", extraction.getSchedules().size()),
-                unifiedExtractorModule.getLastProcessingTimeMs());
+                    .maxTokens(UnifiedExtractorModule.MAX_TOKENS).build()
+                , extractionJson,
+                String.format("추출 완료: %d개 일정", extraction.getSchedules().size()));
 
             // 4. DIFFICULT_EXPRESSIONS 로그
             String difficultJson = objectMapper.writeValueAsString(difficultExpressions);
@@ -285,10 +285,10 @@ public class DocumentAnalysisPipeline {
                     .promptTemplate("DifficultExpressionExtractorModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(DifficultExpressionExtractorModule.MODEL_NAME)
                     .temperature(DifficultExpressionExtractorModule.TEMPERATURE)
-                    .maxTokens(DifficultExpressionExtractorModule.MAX_TOKENS).build(),
-                difficultExpressionExtractorModule.getLastRawResponse(), difficultJson,
-                String.format("어려운 표현 %d개 추출", difficultExpressions.size()),
-                difficultExpressionExtractorModule.getLastProcessingTimeMs());
+                    .maxTokens(DifficultExpressionExtractorModule.MAX_TOKENS).build()
+                , difficultJson,
+                String.format("어려운 표현 %d개 추출", difficultExpressions.size())
+            );
 
             // 5. SIMPLIFICATION 로그
             stepLogService.logSuccess(analysis,
@@ -298,9 +298,8 @@ public class DocumentAnalysisPipeline {
                     .modelUsed(KoreanSimplifierModule.MODEL_NAME)
                     .temperature(KoreanSimplifierModule.TEMPERATURE)
                     .maxTokens(KoreanSimplifierModule.MAX_TOKENS).build(),
-                koreanSimplifierModule.getLastRawResponse(), simplifiedKorean,
-                String.format("쉬운 한국어 %d자", simplifiedKorean.length()),
-                koreanSimplifierModule.getLastProcessingTimeMs());
+                simplifiedKorean,
+                String.format("쉬운 한국어 %d자", simplifiedKorean.length()));
 
             // 6. TRANSLATION 로그
             stepLogService.logSuccess(analysis,
@@ -310,10 +309,9 @@ public class DocumentAnalysisPipeline {
                     .modelUsed(TranslatorModule.MODEL_NAME)
                     .temperature(TranslatorModule.TEMPERATURE)
                     .maxTokens(TranslatorModule.MAX_TOKENS).build(),
-                translatorModule.getLastRawResponse(), translatedText,
+                translatedText,
                 String.format("번역 완료: %d자 -> %s", translatedText.length(),
-                    context.getTargetLanguage().getDisplayName()),
-                translatorModule.getLastProcessingTimeMs());
+                    context.getTargetLanguage().getDisplayName()));
 
             // 7. SUMMARIZATION 로그
             stepLogService.logSuccess(analysis,
@@ -322,10 +320,8 @@ public class DocumentAnalysisPipeline {
                     .promptTemplate("SummarizerModule") // Todo 로그 삭제 예정으로 임시 처리
                     .modelUsed(SummarizerModule.MODEL_NAME)
                     .temperature(SummarizerModule.TEMPERATURE)
-                    .maxTokens(SummarizerModule.MAX_TOKENS).build(),
-                summarizerModule.getLastRawResponse(), summary,
-                String.format("요약 완료: %d자", summary.length()),
-                summarizerModule.getLastProcessingTimeMs());
+                    .maxTokens(SummarizerModule.MAX_TOKENS).build(), summary,
+                String.format("요약 완료: %d자", summary.length()));
 
             // 분석 완료 카운트 업데이트
             analysis.updateStepCounts(TOTAL_STEPS, TOTAL_STEPS);

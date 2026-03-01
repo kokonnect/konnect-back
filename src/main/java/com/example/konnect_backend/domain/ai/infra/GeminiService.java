@@ -1,9 +1,9 @@
 package com.example.konnect_backend.domain.ai.infra;
 
 import com.example.konnect_backend.domain.ai.config.GeminiConfig;
+import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,11 +19,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Gemini API 통합 서비스
- *
+ * <p>
  * ## 모델별 용도
  * - gemini-2.0-flash (Primary): 복잡한 분석, 문서 분류, 정보 추출, Vision
  * - gemini-2.0-flash-lite (Lite): 단순 번역, 요약, 간단한 텍스트 처리
- *
+ * <p>
  * ## 주요 기능
  * 1. 텍스트 생성 (generateContent)
  * 2. 이미지 분석 (generateContentWithImage) - Vision
@@ -45,26 +45,16 @@ public class GeminiService {
     private final AtomicLong sessionOutputTokens = new AtomicLong(0);
     private final AtomicLong sessionTotalTokens = new AtomicLong(0);
 
-    // 마지막 호출 토큰 정보
-    private volatile TokenUsage lastTokenUsage;
-
-    /**
-     * 텍스트 생성 (Primary 모델 선호)
-     * 복잡한 작업: 문서 분류, 정보 추출
-     */
-    public String generateContent(String prompt, double temperature, int maxTokens) {
-        return generateContent(prompt, temperature, maxTokens, true);
-    }
-
     /**
      * 텍스트 생성 (모델 선호도 지정)
      *
-     * @param prompt 프롬프트
-     * @param temperature 온도 (0.0 ~ 1.0)
-     * @param maxTokens 최대 토큰 수
+     * @param prompt        프롬프트
+     * @param temperature   온도 (0.0 ~ 1.0)
+     * @param maxTokens     최대 토큰 수
      * @param preferPrimary true: Primary 모델 선호, false: Lite 모델 선호
      */
-    public String generateContent(String prompt, double temperature, int maxTokens, boolean preferPrimary) {
+    public GeminiCallResult generateContent(String prompt, double temperature, int maxTokens,
+                                  boolean preferPrimary) {
         String model = rateLimitService.getAvailableModel(preferPrimary);
 
         if (model == null) {
@@ -79,7 +69,7 @@ public class GeminiService {
      * 간단한 텍스트 생성 (Lite 모델 사용)
      * 단순 작업: 번역, 요약, 쉬운 표현 변환
      */
-    public String generateSimpleContent(String prompt, double temperature, int maxTokens) {
+    public GeminiCallResult generateSimpleContent(String prompt, double temperature, int maxTokens) {
         return generateContent(prompt, temperature, maxTokens, false);
     }
 
@@ -87,11 +77,11 @@ public class GeminiService {
      * 이미지 분석 (Vision 모델)
      * OCR, 이미지 내 텍스트 추출
      *
-     * @param prompt 프롬프트
+     * @param prompt      프롬프트
      * @param imageBase64 Base64 인코딩된 이미지
-     * @param mimeType 이미지 MIME 타입 (image/jpeg, image/png 등)
+     * @param mimeType    이미지 MIME 타입 (image/jpeg, image/png 등)
      */
-    public String generateContentWithImage(String prompt, String imageBase64, String mimeType,
+    public GeminiCallResult generateContentWithImage(String prompt, String imageBase64, String mimeType,
                                            double temperature, int maxTokens) {
         String model = rateLimitService.getVisionModel();
 
@@ -100,22 +90,28 @@ public class GeminiService {
             throw new DocumentAnalysisException(ErrorStatus.AI_SERVICE_UNAVAILABLE);
         }
 
-        return callGeminiApi(model, prompt, new ImageData(imageBase64, mimeType), temperature, maxTokens);
+        return callGeminiApi(model, prompt, new ImageData(imageBase64, mimeType), temperature,
+            maxTokens);
+    }
+
+    public GeminiCallResult call(String model, String prompt, int maxTokens) {
+        return callGeminiApi(model, prompt, null, 0.2, maxTokens);
     }
 
     /**
      * Gemini API 호출
      */
-    private String callGeminiApi(String model, String prompt, ImageData imageData,
-                                  double temperature, int maxTokens) {
+    private GeminiCallResult callGeminiApi(String model, String prompt, ImageData imageData,
+                                 double temperature, int maxTokens) {
         String url = String.format("%s/models/%s:generateContent?key=%s",
-                config.getApi().getBaseUrl(),
-                model,
-                config.getApi().getKey());
+            config.getApi().getBaseUrl(),
+            model,
+            config.getApi().getKey());
 
         try {
             // 요청 본문 구성
-            Map<String, Object> requestBody = buildRequestBody(prompt, imageData, temperature, maxTokens);
+            Map<String, Object> requestBody = buildRequestBody(prompt, imageData, temperature,
+                maxTokens);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -125,27 +121,28 @@ public class GeminiService {
             log.debug("Gemini API 호출: model={}, promptLength={}", model, prompt.length());
 
             ResponseEntity<String> response = geminiRestTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    String.class
+                url,
+                HttpMethod.POST,
+                entity,
+                String.class
             );
 
             if (!response.getStatusCode().is2xxSuccessful()) {
-                log.error("Gemini API 오류: status={}, body={}", response.getStatusCode(), response.getBody());
+                log.error("Gemini API 오류: status={}, body={}", response.getStatusCode(),
+                    response.getBody());
                 throw new DocumentAnalysisException(ErrorStatus.AI_SERVICE_UNAVAILABLE);
             }
 
             // 응답 파싱 및 토큰 로깅
-            String content = parseResponse(response.getBody(), model);
+            GeminiCallResult result = parseResponse(response.getBody());
+            logTokenUsage(result.inputTokens(), result.outputTokens(), result.model());
 
             // 호출 기록
             rateLimitService.recordUsage(model);
 
-            log.debug("Gemini API 응답 완료: model={}, responseLength={}", model, content.length());
+            log.debug("Gemini API 응답 완료: model={}, responseLength={}", model, result.response().length());
 
-            return content;
-
+            return result;
         } catch (DocumentAnalysisException e) {
             throw e;
         } catch (Exception e) {
@@ -158,7 +155,7 @@ public class GeminiService {
      * 요청 본문 구성
      */
     private Map<String, Object> buildRequestBody(String prompt, ImageData imageData,
-                                                  double temperature, int maxTokens) {
+                                                 double temperature, int maxTokens) {
         Map<String, Object> requestBody = new HashMap<>();
 
         // contents 구성
@@ -196,35 +193,19 @@ public class GeminiService {
         return requestBody;
     }
 
-    /**
-     * 응답 파싱 및 토큰 사용량 추출
-     */
-    private String parseResponse(String responseBody, String model) {
+    private GeminiCallResult parseResponse(String responseBody) {
         try {
-            JsonNode root = objectMapper.readTree(responseBody);
+            log.info(responseBody);
 
-            // 토큰 사용량 추출 및 로깅
-            extractAndLogTokenUsage(root, model);
+            GeminiResponse geminiResponse = objectMapper.readValue(responseBody, GeminiResponse.class);
 
-            // candidates[0].content.parts[0].text
-            JsonNode candidates = root.path("candidates");
-            if (candidates.isArray() && candidates.size() > 0) {
-                JsonNode firstCandidate = candidates.get(0);
-                JsonNode contentNode = firstCandidate.path("content");
-                JsonNode partsNode = contentNode.path("parts");
+            String response = geminiResponse.getCandidates().get(0).getContent().getParts().get(0)
+                .getText();
+            long inputTokens = geminiResponse.getUsageMetadata().getPromptTokenCount();
+            long outputTokens = geminiResponse.getUsageMetadata().getCandidatesTokenCount();
+            String model = geminiResponse.getModelVersion();
 
-                if (partsNode.isArray() && partsNode.size() > 0) {
-                    JsonNode textNode = partsNode.get(0).path("text");
-                    if (!textNode.isMissingNode()) {
-                        return textNode.asText();
-                    }
-                }
-            }
-
-            // 응답 구조가 예상과 다른 경우
-            log.warn("예상치 못한 Gemini 응답 구조: {}", responseBody);
-            throw new DocumentAnalysisException(ErrorStatus.AI_SERVICE_UNAVAILABLE);
-
+            return new GeminiCallResult(response, inputTokens, outputTokens, model);
         } catch (DocumentAnalysisException e) {
             throw e;
         } catch (Exception e) {
@@ -233,42 +214,18 @@ public class GeminiService {
         }
     }
 
-    /**
-     * 토큰 사용량 추출 및 로깅
-     */
-    private void extractAndLogTokenUsage(JsonNode root, String model) {
-        try {
-            JsonNode usageMetadata = root.path("usageMetadata");
-            if (!usageMetadata.isMissingNode()) {
-                int promptTokens = usageMetadata.path("promptTokenCount").asInt(0);
-                int candidatesTokens = usageMetadata.path("candidatesTokenCount").asInt(0);
-                int totalTokens = usageMetadata.path("totalTokenCount").asInt(0);
+    // 토큰 사용량 로깅
+    private void logTokenUsage(long inputTokens, long outputTokens, String model) {
+        sessionInputTokens.addAndGet(inputTokens);
+        sessionOutputTokens.addAndGet(outputTokens);
+        sessionTotalTokens.addAndGet(inputTokens + outputTokens);
 
-                // 세션 누적
-                sessionInputTokens.addAndGet(promptTokens);
-                sessionOutputTokens.addAndGet(candidatesTokens);
-                sessionTotalTokens.addAndGet(totalTokens);
-
-                // 마지막 호출 정보 저장
-                lastTokenUsage = new TokenUsage(model, promptTokens, candidatesTokens, totalTokens);
-
-                log.info("📊 토큰 사용량 [{}] - 입력: {}, 출력: {}, 합계: {} | 세션 누적: {}",
-                        model,
-                        promptTokens,
-                        candidatesTokens,
-                        totalTokens,
-                        sessionTotalTokens.get());
-            }
-        } catch (Exception e) {
-            log.debug("토큰 사용량 추출 실패 (무시): {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 현재 API 사용량 조회
-     */
-    public GeminiRateLimitService.UsageStatus getUsageStatus() {
-        return rateLimitService.getUsageStatus();
+        log.info("📊 토큰 사용량 [{}] - 입력: {}, 출력: {}, 합계: {} | 세션 누적: {}",
+            model,
+            inputTokens,
+            outputTokens,
+            inputTokens + outputTokens,
+            sessionTotalTokens.get());
     }
 
     /**
@@ -276,9 +233,9 @@ public class GeminiService {
      */
     public SessionTokenUsage getSessionTokenUsage() {
         return new SessionTokenUsage(
-                sessionInputTokens.get(),
-                sessionOutputTokens.get(),
-                sessionTotalTokens.get()
+            sessionInputTokens.get(),
+            sessionOutputTokens.get(),
+            sessionTotalTokens.get()
         );
     }
 
@@ -289,31 +246,22 @@ public class GeminiService {
         sessionInputTokens.set(0);
         sessionOutputTokens.set(0);
         sessionTotalTokens.set(0);
-        lastTokenUsage = null;
         log.info("세션 토큰 사용량 초기화됨");
     }
 
     /**
      * 이미지 데이터 레코드
      */
-    private record ImageData(String base64Data, String mimeType) {}
-
-    /**
-     * 단일 호출 토큰 사용량
-     */
-    public record TokenUsage(
-            String model,
-            int inputTokens,
-            int outputTokens,
-            int totalTokens
-    ) {}
+    private record ImageData(String base64Data, String mimeType) {
+    }
 
     /**
      * 세션 누적 토큰 사용량
      */
     public record SessionTokenUsage(
-            long inputTokens,
-            long outputTokens,
-            long totalTokens
-    ) {}
+        long inputTokens,
+        long outputTokens,
+        long totalTokens
+    ) {
+    }
 }

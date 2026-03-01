@@ -26,8 +26,8 @@ public class StepLogService {
      * 성공한 단계 로그 저장
      */
     @Transactional
-    public AnalysisStepLog logSuccess(DocumentAnalysis analysis, StepInfo stepInfo, String rawResponse,
-                                       String parsedResult, String outputSummary, long processingTimeMs) {
+    public AnalysisStepLog logSuccess(DocumentAnalysis analysis, StepInfo stepInfo,
+                                       String parsedResult, String outputSummary) {
         AnalysisStepLog stepLog = AnalysisStepLog.successBuilder()
                 .documentAnalysis(analysis)
                 .stepName(stepInfo.getStepName())
@@ -38,10 +38,8 @@ public class StepLogService {
                 .modelUsed(stepInfo.getModelUsed())
                 .temperature(stepInfo.getTemperature())
                 .maxTokens(stepInfo.getMaxTokens())
-                .rawResponse(PromptUtils.truncateText(rawResponse, MAX_RESPONSE_LENGTH))
                 .parsedResult(parsedResult)
                 .outputSummary(outputSummary)
-                .processingTimeMs(processingTimeMs)
                 .build();
 
         return stepLogRepository.save(stepLog);
@@ -52,8 +50,7 @@ public class StepLogService {
      */
     @Transactional
     public AnalysisStepLog logClassificationSuccess(DocumentAnalysis analysis, StepInfo stepInfo,
-                                                     String rawResponse, ClassificationResult result,
-                                                     long processingTimeMs) {
+                                                     ClassificationResult result) {
         String parsedResult;
         try {
             parsedResult = objectMapper.writeValueAsString(result);
@@ -73,14 +70,12 @@ public class StepLogService {
                 .modelUsed(stepInfo.getModelUsed())
                 .temperature(stepInfo.getTemperature())
                 .maxTokens(stepInfo.getMaxTokens())
-                .rawResponse(PromptUtils.truncateText(rawResponse, MAX_RESPONSE_LENGTH))
                 .parsedResult(parsedResult)
                 .outputSummary(String.format("%s 분류, 신뢰도 %.2f", result.getDocumentType().getDisplayName(), result.getConfidence()))
                 .classificationType(result.getDocumentType().name())
                 .classificationConfidence(result.getConfidence())
                 .classificationKeywords(keywordsStr)
                 .classificationReasoning(result.getReasoning())
-                .processingTimeMs(processingTimeMs)
                 .build();
 
         return stepLogRepository.save(stepLog);

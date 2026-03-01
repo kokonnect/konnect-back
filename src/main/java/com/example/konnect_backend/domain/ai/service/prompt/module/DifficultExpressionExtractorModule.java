@@ -1,8 +1,10 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
+import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 어려운 표현 추출 모듈 (Gemini API 사용)
@@ -28,12 +32,8 @@ import java.util.List;
 @Slf4j
 public class DifficultExpressionExtractorModule implements PromptModule {
 
+    private final PromptTemplateResolver resolver;
     private final GeminiService geminiService;
-
-    @Getter
-    private String lastRawResponse;
-    @Getter
-    private long lastProcessingTimeMs;
 
     // Lite 모델 사용 (단순 추출 작업)
     public static final String MODEL_NAME = "gemini-2.0-flash-lite";
@@ -41,38 +41,38 @@ public class DifficultExpressionExtractorModule implements PromptModule {
     public static final int MAX_TOKENS = 1500;
 
     @Override
-    public void process(String promptTemplate, PipelineContext context) {
-        String extractedText = context.getExtractedText();
+    public void process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = prepareVars(context);
+        String promptContent = resolver.resolve(promptTemplate, vars);
 
         long startTime = System.currentTimeMillis();
         try {
-            String targetLanguage = context.getTargetLanguage() != null
-                    ? context.getTargetLanguage().getDisplayName()
-                    : "한국어";
-
-            log.info("어려운 표현 추출 시작 (Gemini Lite 모델, 설명 언어: {})", targetLanguage);
-
-            String promptContent = String.format(promptTemplate,
-                    targetLanguage,
-                    targetLanguage,
-                    PromptUtils.truncateText(extractedText, 4000));
+            log.info("어려운 표현 추출 시작 (Gemini Lite 모델, 설명 언어: {})", context.getTargetLanguage().getDisplayName());
 
             // Gemini Lite 모델 사용 (preferPrimary = false)
-            String response = geminiService.generateSimpleContent(promptContent, TEMPERATURE, MAX_TOKENS);
-
-            this.lastRawResponse = response;
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
-
+            String response = geminiService.generateSimpleContent(promptContent, TEMPERATURE, MAX_TOKENS).response();
             List<DifficultExpressionDto> expressions = parseResponse(response);
 
             context.addLog("어려운 표현 추출 완료: " + expressions.size() + "개");
             context.setDifficultExpressions(expressions);
             context.setCompletedStage(PipelineContext.PipelineStage.DIFFICULT_EXPRESSIONS_EXTRACTED);
+
+            log.info("어려운 표현 추출 소요 시간: {} ms", System.currentTimeMillis() - startTime);
         } catch (Exception e) {
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
             log.error("어려운 표현 추출 실패", e);
             context.addLog("어려운 표현 추출 실패: " + e.getMessage());
         }
+    }
+
+    private Map<String, String> prepareVars(PipelineContext context) {
+        String extractedText = context.getExtractedText();
+        String targetLanguage = context.getTargetLanguage().getDisplayName();
+
+        Map<String, String> vars = new HashMap<>();
+        vars.put("text", PromptUtils.truncateText(extractedText, 4000));
+        vars.put("target_language", targetLanguage);
+
+        return vars;
     }
 
     @Override

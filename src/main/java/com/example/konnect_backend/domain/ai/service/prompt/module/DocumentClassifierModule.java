@@ -1,8 +1,10 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
+import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,11 +34,7 @@ public class DocumentClassifierModule implements PromptModule {
 
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
-
-    @Getter
-    private String lastRawResponse;
-    @Getter
-    private long lastProcessingTimeMs;
+    private final PromptTemplateResolver resolver;
 
     // Lite 모델 사용 (단순 분류 작업)
     public static final String MODEL_NAME = "gemini-2.0-flash-lite";
@@ -43,21 +42,16 @@ public class DocumentClassifierModule implements PromptModule {
     public static final int MAX_TOKENS = 500;
 
     @Override
-    public void process(String promptTemplate, PipelineContext context) {
-        String extractedText = context.getExtractedText();
+    public void process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = prepareVars(context);
+        String prompt = resolver.resolve(promptTemplate, vars);
 
         long startTime = System.currentTimeMillis();
         try {
             log.info("문서 유형 분류 시작 (Gemini Lite 모델 사용)");
 
-            String truncatedText = PromptUtils.truncateText(extractedText, 3000);
-            String promptContent = String.format(promptTemplate, truncatedText);
-
             // Gemini Lite 모델 사용 (preferPrimary = false)
-            String response = geminiService.generateSimpleContent(promptContent, TEMPERATURE, MAX_TOKENS);
-
-            this.lastRawResponse = response;
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
+            String response = geminiService.generateSimpleContent(prompt, TEMPERATURE, MAX_TOKENS).response();
 
             ClassificationResult result = parseClassificationResult(response);
             context.setClassificationResult(result);
@@ -71,15 +65,24 @@ public class DocumentClassifierModule implements PromptModule {
                     result.getConfidence(),
                     result.getKeywords(),
                     PromptUtils.truncateText(result.getReasoning(), 100));
+            log.info("문서 분류 소요시간: {} ms", System.currentTimeMillis() - startTime);
         } catch (Exception e) {
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
             log.error("문서 분류 실패", e);
+
             ClassificationResult defaultResult = ClassificationResult.defaultNotice();
             context.setDocumentType(defaultResult.getDocumentType());
             context.addLog("문서 분류 실패, 기본값(NOTICE) 사용");
             context.setClassificationResult(defaultResult);
+
             throw e;
         }
+    }
+
+    private Map<String, String> prepareVars(PipelineContext context) {
+        Map<String, String> vars = new HashMap<>();
+        vars.put("text", PromptUtils.truncateText(context.getExtractedText(), 4000));
+
+        return vars;
     }
 
     public String getModuleName() {

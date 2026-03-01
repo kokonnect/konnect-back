@@ -1,14 +1,19 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
+import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 요약 모듈 (Gemini API 사용)
@@ -25,11 +30,7 @@ import org.springframework.stereotype.Component;
 public class SummarizerModule implements PromptModule {
 
     private final GeminiService geminiService;
-
-    @Getter
-    private String lastRawResponse;
-    @Getter
-    private long lastProcessingTimeMs;
+    private final PromptTemplateResolver resolver;
 
     // Lite 모델 사용 (단순 요약)
     public static final String MODEL_NAME = "gemini-2.0-flash-lite";
@@ -37,26 +38,17 @@ public class SummarizerModule implements PromptModule {
     public static final int MAX_TOKENS = 500;
 
     @Override
-    public void process(String promptTemplate, PipelineContext context) {
-        String simplifiedText = context.getSimplifiedKorean();
-        long startTime = System.currentTimeMillis();
+    public void process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = prepareVars(context);
+        String prompt = resolver.resolve(promptTemplate, vars);
+
         try {
-            String targetLanguage = context.getTargetLanguage() != null
-                    ? context.getTargetLanguage().getDisplayName()
-                    : "한국어";
+            log.info("요약 생성 시작 (Gemini Lite 모델): {}", context.getTargetLanguage().getDisplayName());
 
-            log.info("요약 생성 시작 (Gemini Lite 모델): {}", targetLanguage);
-
-            String promptContent = String.format(promptTemplate,
-                    targetLanguage,
-                    targetLanguage,
-                    PromptUtils.truncateText(simplifiedText, 6000));
+            long startTime = System.currentTimeMillis();
 
             // Gemini Lite 모델 사용 (preferPrimary = false)
-            String summary = geminiService.generateSimpleContent(promptContent, TEMPERATURE, MAX_TOKENS);
-
-            this.lastRawResponse = summary;
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
+            String summary = geminiService.generateSimpleContent(prompt, TEMPERATURE, MAX_TOKENS).response();
 
             if (summary == null || summary.trim().isEmpty()) {
                 throw new DocumentAnalysisException(ErrorStatus.DOCUMENT_ANALYSIS_FAILED);
@@ -65,11 +57,11 @@ public class SummarizerModule implements PromptModule {
             context.addLog("요약 생성 완료: " + summary.length() + "자");
             context.setSummary(summary);
             context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
+
+            log.info("요약 소요시간 {} ms", System.currentTimeMillis() - startTime);
         } catch (DocumentAnalysisException e) {
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
             throw e;
         } catch (Exception e) {
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
             log.error("요약 생성 실패", e);
             throw new DocumentAnalysisException(ErrorStatus.DOCUMENT_ANALYSIS_FAILED);
         }
@@ -78,5 +70,18 @@ public class SummarizerModule implements PromptModule {
     @Override
     public String getModuleName() {
         return "SUMMARIZATION";
+    }
+
+    private Map<String, String> prepareVars(PipelineContext context) {
+        String targetLanguage = context.getTargetLanguage() != null
+            ? context.getTargetLanguage().getDisplayName()
+            : "한국어";
+        String simplifiedText = context.getSimplifiedKorean();
+
+        Map<String, String> vars = new HashMap<>();
+        vars.put("target_language", targetLanguage);
+        vars.put("text", PromptUtils.truncateText(simplifiedText, 6000));
+
+        return vars;
     }
 }

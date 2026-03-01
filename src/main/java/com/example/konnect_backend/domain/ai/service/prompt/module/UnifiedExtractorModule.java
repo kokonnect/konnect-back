@@ -2,8 +2,10 @@ package com.example.konnect_backend.domain.ai.service.prompt.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.ExtractedScheduleDto;
+import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,11 +36,7 @@ import java.util.Map;
 public class UnifiedExtractorModule implements PromptModule {
 
     private final GeminiService geminiService;
-
-    @Getter
-    private String lastRawResponse;
-    @Getter
-    private long lastProcessingTimeMs;
+    private final PromptTemplateResolver resolver;
 
     // Primary 모델 사용 (복잡한 JSON 추출, 정확도 중요)
     public static final String MODEL_NAME = "gemini-2.0-flash";
@@ -46,38 +44,27 @@ public class UnifiedExtractorModule implements PromptModule {
     public static final int MAX_TOKENS = 3000;
 
     @Override
-    public void process(String promptTemplate, PipelineContext context) {
-        long startTime = System.currentTimeMillis();
-        String extractedText = context.getExtractedText();
+    public void process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = prepareVars(context);
+        String prompt = resolver.resolve(promptTemplate, vars);
+
         try {
-            String targetLanguage = context.getTargetLanguage() != null
-                    ? context.getTargetLanguage().getDisplayName()
-                    : "한국어";
-
-            log.info("통합 정보 추출 시작 (Gemini Primary 모델, 출력 언어: {})", targetLanguage);
-
-            String promptContent = String.format(promptTemplate,
-                    targetLanguage,
-                    targetLanguage,
-                    LocalDate.now().toString(),
-                    PromptUtils.truncateText(extractedText, 5000));
+            log.info("통합 정보 추출 시작 (Gemini Primary 모델, 출력 언어: {})", context.getTargetLanguage().getDisplayName());
+            long startTime = System.currentTimeMillis();
 
             // Gemini Primary 모델 사용 (preferPrimary = true)
-            String response = geminiService.generateContent(promptContent, TEMPERATURE, MAX_TOKENS, true);
-
-            this.lastRawResponse = response;
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
+            String response = geminiService.generateContent(prompt, TEMPERATURE, MAX_TOKENS, true).response();
 
             ExtractionResult result = parseUnifiedResult(response);
-
             int scheduleCount = result.getSchedules() != null ? result.getSchedules().size() : 0;
+
             context.addLog(String.format("정보 추출 완료: %d개 일정, 추가정보 %d개 항목",
                     scheduleCount, result.getAdditionalInfo().size()));
-
             context.setExtractionResult(result);
             context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
+
+            log.info("통합 정보 추출 소요시간 {} ms", System.currentTimeMillis() - startTime);
         } catch (Exception e) {
-            this.lastProcessingTimeMs = System.currentTimeMillis() - startTime;
             log.error("통합 정보 추출 실패", e);
             context.addLog("정보 추출 실패: " + e.getMessage());
         }
@@ -86,6 +73,15 @@ public class UnifiedExtractorModule implements PromptModule {
     @Override
     public String getModuleName() {
         return "UNIFIED_EXTRACTION";
+    }
+
+    private Map<String, String> prepareVars(PipelineContext context) {
+        Map<String, String> vars = new HashMap<>();
+        vars.put("target_language", context.getTargetLanguage().getDisplayName());
+        vars.put("today", LocalDate.now().toString());
+        vars.put("text", PromptUtils.truncateText(context.getExtractedText(), 5000));
+
+        return vars;
     }
 
     @SuppressWarnings("unchecked")

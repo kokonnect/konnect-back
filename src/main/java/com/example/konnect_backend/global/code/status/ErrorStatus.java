@@ -105,7 +105,11 @@ public enum ErrorStatus implements BaseErrorCode {
     INVALID_REGION_CODE(HttpStatus.BAD_REQUEST, "SCHOOL4001", "유효하지 않은 지역 코드입니다."),
 
     // Prompt Errors
-    PromptNotFound(HttpStatus.NOT_FOUND, "PROMPT4001", "요청한 프롬프트 템플릿이 존재하지 않습니다.");
+    PROMPT_NOT_FOUND(HttpStatus.NOT_FOUND, "PROMPT4001", "요청한 프롬프트 템플릿이 존재하지 않습니다."), 
+    INVALID_AI_MODEL(HttpStatus.BAD_REQUEST, "PROMPT4002", "올바르지 않은 AI 모델입니다."),
+    INVALID_MODULE_NAME(HttpStatus.BAD_REQUEST, "PROMPT4003", "올바르지 않은 모듈명입니다."), // V1은 코드에서 생성 필요
+    PROMPT_TEMPLATE_RESOLUTION_FAILED(HttpStatus.BAD_REQUEST, "PROMPT4004", "입력 변수 누락으로 템플릿을 완성하지 못했습니다."),
+    INVALID_PROMPT_TEMPLATE(HttpStatus.BAD_REQUEST, "PROMPT4005", "올바르지 않은 프롬프트입니다.");
 
 
 

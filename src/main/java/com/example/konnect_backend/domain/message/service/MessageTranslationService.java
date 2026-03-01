@@ -183,7 +183,7 @@ public class MessageTranslationService {
                     message);
 
             // Gemini Lite 모델 사용 (단순 번역)
-            String result = geminiService.generateSimpleContent(prompt, 0.3, 2000);
+            String result = geminiService.generateSimpleContent(prompt, 0.3, 2000).response();
 
             if (result == null || result.trim().isEmpty()) {
                 log.error("메시지 번역 결과가 비어있음");

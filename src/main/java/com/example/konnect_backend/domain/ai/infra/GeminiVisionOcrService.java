@@ -52,7 +52,7 @@ public class GeminiVisionOcrService implements OcrService {
                     mimeType,
                     TEMPERATURE,
                     MAX_TOKENS
-            );
+            ).response();
 
             if (extractedText == null || extractedText.trim().isEmpty()) {
                 log.warn("Gemini Vision OCR: 텍스트 추출 결과 없음");
