@@ -42,4 +42,9 @@ jobs:
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_NAME }}:latest
             docker stop ${{ secrets.DOCKERHUB_NAME }} || true
             docker rm ${{ secrets.DOCKERHUB_NAME }} || true
-            docker run -d -p 8080:8080 --name ${{ secrets.DOCKERHUB_NAME }} ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_NAME }}:latest
+            docker run -d \
+            -p 8080:8080 \
+            --env-file ~/.env \
+            --restart always \
+            --name ${{ secrets.DOCKERHUB_NAME }} \
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_NAME }}:latest
