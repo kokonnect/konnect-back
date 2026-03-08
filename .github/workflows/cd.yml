@@ -20,6 +20,7 @@ jobs:
 #
 #      - run: ./gradlew clean build -x test
 
+
       - name: Docker build
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_NAME }}:latest .
 
