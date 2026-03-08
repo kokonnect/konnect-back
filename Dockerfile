@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # Multi-stage build for optimized image size
 FROM gradle:8.5-jdk17 AS builder
 
@@ -16,8 +17,15 @@ RUN gradle clean build -x test --no-daemon
 # Runtime stage
 FROM eclipse-temurin:17-jre
 
+=======
+# build stage
+FROM gradle:8-jdk17 AS build
+>>>>>>> Stashed changes
 WORKDIR /app
+COPY . .
+RUN gradle build -x test
 
+<<<<<<< Updated upstream
 # Install required system dependencies as root
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
@@ -51,3 +59,9 @@ ENTRYPOINT ["java", \
   "-XX:InitialRAMPercentage=50.0", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-jar", "app.jar"]
+=======
+# runtime stage
+FROM openjdk:17-jdk-slim
+COPY --from=build /app/build/libs/*.jar app.jar
+ENTRYPOINT ["java","-jar","/app.jar"]
+>>>>>>> Stashed changes
