@@ -1,13 +1,14 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
+import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
+import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 /**
  * 요약 모듈 (Gemini API 사용)
- *
+ * <p>
  * ## 모델 선택: gemini-2.0-flash-lite
  * - 이유: 요약은 단순한 텍스트 처리 작업
  * - 핵심 내용 추출 및 간략화
@@ -38,8 +39,8 @@ public class SummarizerModule implements PromptModule {
     public static final int MAX_TOKENS = 500;
 
     @Override
-    public void process(PromptTemplate promptTemplate, PipelineContext context) {
-        Map<String, String> vars = prepareVars(context);
+    public TokenUsage process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = getVars(context);
         String prompt = resolver.resolve(promptTemplate, vars);
 
         try {
@@ -48,9 +49,11 @@ public class SummarizerModule implements PromptModule {
             long startTime = System.currentTimeMillis();
 
             // Gemini Lite 모델 사용 (preferPrimary = false)
-            String summary = geminiService.generateSimpleContent(prompt, TEMPERATURE, MAX_TOKENS).response();
+            GeminiCallResult callResult = geminiService.generateSimpleContent(prompt, TEMPERATURE,
+                MAX_TOKENS);
+            String summary = callResult.response();
 
-            if (summary == null || summary.trim().isEmpty()) {
+            if (summary == null || summary.isBlank()) {
                 throw new DocumentAnalysisException(ErrorStatus.DOCUMENT_ANALYSIS_FAILED);
             }
 
@@ -59,6 +62,7 @@ public class SummarizerModule implements PromptModule {
             context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
 
             log.info("요약 소요시간 {} ms", System.currentTimeMillis() - startTime);
+            return callResult.tokenUsage();
         } catch (DocumentAnalysisException e) {
             throw e;
         } catch (Exception e) {
@@ -72,7 +76,7 @@ public class SummarizerModule implements PromptModule {
         return "SUMMARIZATION";
     }
 
-    private Map<String, String> prepareVars(PipelineContext context) {
+    public Map<String, String> getVars(PipelineContext context) {
         String targetLanguage = context.getTargetLanguage() != null
             ? context.getTargetLanguage().getDisplayName()
             : "한국어";

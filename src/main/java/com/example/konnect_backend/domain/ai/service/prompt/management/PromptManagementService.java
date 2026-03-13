@@ -80,21 +80,24 @@ public class PromptManagementService {
         String prompt = resolver.resolve(request.promptTemplate(), request.vars());
 
         long start = System.currentTimeMillis();
-        GeminiCallResult result = geminiService.call(request.modelName(), prompt, request.maxTokens());
+        GeminiCallResult result = geminiService.call(request.modelName(), prompt, 0.2,
+            request.maxTokens());
         long timeTakenInMillis = System.currentTimeMillis() - start;
 
-        return new RunResultResponse(result.response(), (int) timeTakenInMillis, result.inputTokens(), result.outputTokens());
+        return new RunResultResponse(result.response(), (int) timeTakenInMillis,
+            result.tokenUsage().inputTokens(), result.tokenUsage().outputTokens());
     }
 
     // 템플릿 내 변수 추가는 파이프라인에서 코드 변화가 필요하기에 지원하지 않습니다.
     @Transactional
     public PromptResponse createNewVersion(String moduleName, String template,
-                                                           String model, Integer maxTokens) {
+                                           String model, Integer maxTokens) {
         AiModel aiModel = aiModelRepository.findByName(model)
             .orElseThrow(() -> new GeneralException(ErrorStatus.INVALID_AI_MODEL));
         PromptTemplate maxVersion = promptRepository.getMaxVersionOfModule(moduleName);
 
-        PromptTemplate newPrompt = new PromptTemplate(moduleName, maxVersion.getVersion() + 1, template, maxTokens,
+        PromptTemplate newPrompt = new PromptTemplate(moduleName, maxVersion.getVersion() + 1,
+            template, maxTokens,
             aiModel.getId());
 
         PromptTemplate activePrompt = promptLoader.getActivePromptTemplate(moduleName);
@@ -111,7 +114,7 @@ public class PromptManagementService {
         List<PromptSlot> newPromptSlots = slots.stream()
             .map(s -> s.withPromptTemplate(newPrompt)).toList();
         newPrompt.updateSlots(newPromptSlots);
-        
+
         PromptTemplate saved = promptRepository.save(newPrompt);
         return PromptResponse.from(new PromptTemplateWithModelName(saved, aiModel.getName()));
     }

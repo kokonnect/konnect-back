@@ -1,16 +1,17 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
+import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.dto.response.ExtractedScheduleDto;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
+import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,7 +24,7 @@ import java.util.Map;
 
 /**
  * 통합 정보 추출 모듈 (Gemini API 사용)
- *
+ * <p>
  * ## 모델 선택: gemini-2.0-flash (Primary)
  * - 이유: 복잡한 JSON 구조 추출에 높은 정확도 필요
  * - 다양한 정보(일정, 행사, 벌점, 공지) 통합 추출
@@ -44,29 +45,35 @@ public class UnifiedExtractorModule implements PromptModule {
     public static final int MAX_TOKENS = 3000;
 
     @Override
-    public void process(PromptTemplate promptTemplate, PipelineContext context) {
-        Map<String, String> vars = prepareVars(context);
+    public TokenUsage process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = getVars(context);
         String prompt = resolver.resolve(promptTemplate, vars);
 
         try {
-            log.info("통합 정보 추출 시작 (Gemini Primary 모델, 출력 언어: {})", context.getTargetLanguage().getDisplayName());
+            log.info("통합 정보 추출 시작 (Gemini Primary 모델, 출력 언어: {})",
+                context.getTargetLanguage().getDisplayName());
             long startTime = System.currentTimeMillis();
 
             // Gemini Primary 모델 사용 (preferPrimary = true)
-            String response = geminiService.generateContent(prompt, TEMPERATURE, MAX_TOKENS, true).response();
+            GeminiCallResult callResult = geminiService.generateContent(prompt, TEMPERATURE,
+                MAX_TOKENS, true);
+            String response = callResult.response();
 
             ExtractionResult result = parseUnifiedResult(response);
             int scheduleCount = result.getSchedules() != null ? result.getSchedules().size() : 0;
 
             context.addLog(String.format("정보 추출 완료: %d개 일정, 추가정보 %d개 항목",
-                    scheduleCount, result.getAdditionalInfo().size()));
+                scheduleCount, result.getAdditionalInfo().size()));
             context.setExtractionResult(result);
             context.setCompletedStage(PipelineContext.PipelineStage.EXTRACTED);
 
             log.info("통합 정보 추출 소요시간 {} ms", System.currentTimeMillis() - startTime);
+
+            return callResult.tokenUsage();
         } catch (Exception e) {
             log.error("통합 정보 추출 실패", e);
             context.addLog("정보 추출 실패: " + e.getMessage());
+            throw e;
         }
     }
 
@@ -75,7 +82,7 @@ public class UnifiedExtractorModule implements PromptModule {
         return "UNIFIED_EXTRACTION";
     }
 
-    private Map<String, String> prepareVars(PipelineContext context) {
+    public Map<String, String> getVars(PipelineContext context) {
         Map<String, String> vars = new HashMap<>();
         vars.put("target_language", context.getTargetLanguage().getDisplayName());
         vars.put("today", LocalDate.now().toString());
@@ -98,7 +105,9 @@ public class UnifiedExtractorModule implements PromptModule {
             List<ExtractedScheduleDto> schedules = new ArrayList<>();
             if (resultMap.containsKey("schedules") && resultMap.get("schedules") != null) {
                 String schedulesJson = mapper.writeValueAsString(resultMap.get("schedules"));
-                schedules = mapper.readValue(schedulesJson, new TypeReference<List<ExtractedScheduleDto>>() {});
+                schedules = mapper.readValue(schedulesJson,
+                    new TypeReference<List<ExtractedScheduleDto>>() {
+                    });
             }
 
             // 추가 정보 수집
@@ -119,9 +128,9 @@ public class UnifiedExtractorModule implements PromptModule {
             log.debug("추출 결과: {}개 일정, {}개 추가정보", schedules.size(), additionalInfo.size());
 
             return ExtractionResult.builder()
-                    .schedules(schedules)
-                    .additionalInfo(additionalInfo)
-                    .build();
+                .schedules(schedules)
+                .additionalInfo(additionalInfo)
+                .build();
 
         } catch (Exception e) {
             log.warn("통합 추출 결과 JSON 파싱 실패: {}", PromptUtils.truncateText(response, 200), e);

@@ -1,13 +1,14 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
+import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
+import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 /**
  * 쉬운 한국어 변환 모듈 (Gemini API 사용)
- *
+ * <p>
  * ## 모델 선택: gemini-2.0-flash-lite
  * - 이유: 단순한 텍스트 변환 작업
  * - 어려운 한국어 → 쉬운 한국어 재작성
@@ -38,8 +39,8 @@ public class KoreanSimplifierModule implements PromptModule {
     public static final int MAX_TOKENS = 4000;
 
     @Override
-    public void process(PromptTemplate promptTemplate, PipelineContext context) {
-        Map<String, String> vars = prepareVars(context);
+    public TokenUsage process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = getVars(context);
         String prompt = resolver.resolve(promptTemplate, vars);
 
         try {
@@ -47,17 +48,21 @@ public class KoreanSimplifierModule implements PromptModule {
             long startTime = System.currentTimeMillis();
 
             // Gemini Lite 모델 사용 (preferPrimary = false)
-            String simplifiedText = geminiService.generateSimpleContent(prompt, TEMPERATURE, MAX_TOKENS).response().trim();
+            GeminiCallResult callResult = geminiService.generateSimpleContent(prompt, TEMPERATURE,
+                MAX_TOKENS);
+            String simplifiedText = callResult.response();
 
-            if (simplifiedText == null || simplifiedText.isEmpty()) {
+            if (simplifiedText == null || simplifiedText.isBlank()) {
                 throw new DocumentAnalysisException(ErrorStatus.DOCUMENT_ANALYSIS_FAILED);
             }
 
             context.addLog("쉬운 한국어 재작성 완료: " + simplifiedText.length() + "자");
-            context.setSimplifiedKorean(simplifiedText);
+            context.setSimplifiedKorean(simplifiedText.trim());
             context.setCompletedStage(PipelineContext.PipelineStage.SIMPLIFIED);
 
             log.info("쉬운 한국어 재작성 소요시간 {} ms", System.currentTimeMillis() - startTime);
+
+            return callResult.tokenUsage();
         } catch (DocumentAnalysisException e) {
             throw e;
         } catch (Exception e) {
@@ -66,7 +71,7 @@ public class KoreanSimplifierModule implements PromptModule {
         }
     }
 
-    private Map<String, String> prepareVars(PipelineContext context) {
+    public Map<String, String> getVars(PipelineContext context) {
         Map<String, String> vars = new HashMap<>();
         vars.put("text", PromptUtils.truncateText(context.getExtractedText(), 4000));
 

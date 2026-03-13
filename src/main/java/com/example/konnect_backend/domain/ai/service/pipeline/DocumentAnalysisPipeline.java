@@ -5,19 +5,15 @@ import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
-import com.example.konnect_backend.domain.ai.infra.GeminiService;
+import com.example.konnect_backend.domain.ai.entity.log.AnalysisRequestLog;
+import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
+import com.example.konnect_backend.domain.ai.repository.AnalysisRequestLogRepository;
 import com.example.konnect_backend.domain.ai.service.prompt.management.PromptLoader;
 import com.example.konnect_backend.domain.ai.service.prompt.module.*;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
-import com.example.konnect_backend.domain.document.entity.Document;
-import com.example.konnect_backend.domain.document.entity.DocumentAnalysis;
-import com.example.konnect_backend.domain.document.entity.DocumentFile;
-import com.example.konnect_backend.domain.document.entity.DocumentTranslation;
-import com.example.konnect_backend.domain.document.repository.DocumentAnalysisRepository;
-import com.example.konnect_backend.domain.document.repository.DocumentRepository;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
@@ -26,12 +22,15 @@ import com.example.konnect_backend.global.exception.GeneralException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
+
+import static com.example.konnect_backend.domain.ai.interceptor.AnalysisInterceptor.REQUEST_ID_KEY;
 
 @Service
 @RequiredArgsConstructor
@@ -48,84 +47,83 @@ public class DocumentAnalysisPipeline {
     private final TranslatorModule translatorModule;
     private final SummarizerModule summarizerModule;
 
-    private final DocumentRepository documentRepository;
-    private final DocumentAnalysisRepository documentAnalysisRepository;
     private final UserRepository userRepository;
+    private final AnalysisRequestLogRepository requestLogRepository;
     private final ObjectMapper objectMapper;
-    private final StepLogService stepLogService;
-    private final GeminiService geminiService;
-
-    private final IdGenerator idGenerator;
-
-    private static final int TOTAL_STEPS = 7;
 
     @Transactional
     public DocumentAnalysisResponse analyze(UploadFile file, Long requesterId) {
-        Long analysisId = idGenerator.newId();
+        UUID requestId = UUID.fromString(MDC.get(REQUEST_ID_KEY));
+        log.debug("[analyze] requestId: {}", requestId);
         User user = getUser(requesterId);
         TargetLanguage targetLanguage = getTargetLanguage(user);
 
-        PipelineContext context = PipelineContext.builder().targetLanguage(targetLanguage)
-            .completedStage(PipelineContext.PipelineStage.NONE).metadata(new HashMap<>())
+        PipelineContext context = PipelineContext.builder().requestId(requestId)
+            .targetLanguage(targetLanguage)
+            .completedStage(PipelineContext.PipelineStage.NONE)
+            .filename(file.originalName())
+            .fileType(file.fileType())
             .processingLogs(new ArrayList<>()).build();
 
-        context.addMetadata("analysisId", analysisId);
-        context.addMetadata("fileName", file.originalName());
-        context.addMetadata("fileType", file.fileType().name());
-
-        return executePipeline(analysisId, file, user, context);
+        return executePipeline(requestId, file, user, context);
     }
 
-    private DocumentAnalysisResponse executePipeline(Long analysisId, UploadFile file, User user,
+    private DocumentAnalysisResponse executePipeline(UUID requestId, UploadFile file, User user,
                                                      PipelineContext context) {
         long startTime = System.currentTimeMillis();
 
         final List<String> stages = List.of("INIT", "TEXT_EXTRACTION", "CLASSIFICATION",
             "EXTRACTION", "DIFFICULT_EXPRESSIONS", "SIMPLIFICATION", "TRANSLATION", "SUMMARIZATION",
             "SAVE");
-        int currentStage = 0;
-        DocumentAnalysis savedAnalysis;
-
         List<PromptModule> modules = List.of(classifierModule, unifiedExtractorModule,
             difficultExpressionExtractorModule, koreanSimplifierModule, translatorModule,
             summarizerModule);
 
-        // 파이프라인 시작 시 토큰 사용량 초기화
-        geminiService.resetSessionTokenUsage();
-
         try {
-            log.info("문서 분석 파이프라인 시작: analysisId={}, 파일={}, 타입={}, 언어={}", analysisId,
+            log.debug("문서 분석 파이프라인 시작: requestId={}, 파일={}, 타입={}, 언어={}", requestId,
                 file.originalName(), file.fileType(), context.getTargetLanguage().getDisplayName());
 
-            currentStage++;
-            textExtractorFacade.extract(file, context).getText();
+            textExtractorFacade.extract(file, context);
 
             for (PromptModule module : modules) {
-                currentStage++;
                 PromptTemplate promptTemplate = promptLoader.getActivePromptTemplate(
                     module.getModuleName());
-                module.process(promptTemplate, context);
-            }
-
-            currentStage++;
-            savedAnalysis = saveAnalysisResult(file, file.fileType(), user, context);
-
-            // 10. 단계별 로그 저장
-            if (savedAnalysis != null) {
-                saveStepLogs(savedAnalysis, context);
+                TokenUsage tokenUsage = module.process(promptTemplate, context);
+                context.accTokenUsage(tokenUsage);
             }
 
             context.setCompletedStage(PipelineContext.PipelineStage.COMPLETED);
+
+            // 전체 요청 수준에서의 기록
             long processingTime = System.currentTimeMillis() - startTime;
 
-            // 파이프라인 완료 시 총 토큰 사용량 로깅
-            logTotalTokenUsage(analysisId, processingTime);
+            // 1. 총 토큰 사용량 및 처리시간 로그 (Todo 콘솔 → 파일)
+            logRequestProcessingResult("SUCCESS", context, processingTime);
 
-            // 11. 성공 응답 생성
+            // 2. 요청 처리 기록
+            AnalysisRequestLog succeededRequest = AnalysisRequestLog.succeed(requestId,
+                user.getId(),
+                (int) processingTime);
+            requestLogRepository.save(succeededRequest);
+
+            // 3. 번역 기록 조회용 정보
+            // Todo 번역 기록 조회를 위한 모든 처리 정보 저장
+            Long analysisId = saveAnalysisResult(file, file.fileType(), user, context);
+
+
+            // 성공 응답 생성
             return buildSuccessResponse(analysisId, file, context);
         } catch (Exception e) {
-            log.error("문서 분석 파이프라인 실패: analysisId={}, stage={}", analysisId,
-                stages.get(currentStage), e);
+            log.error("문서 분석 파이프라인 실패: requestId={}", requestId, e);
+
+            // 실패 요청 기록 저장
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            logRequestProcessingResult("FAIL", context, processingTime);
+            AnalysisRequestLog failedRequest = AnalysisRequestLog.fail(requestId, user.getId(),
+                (int) processingTime);
+            requestLogRepository.save(failedRequest);
+
             throw e;
         }
     }
@@ -154,32 +152,30 @@ public class DocumentAnalysisPipeline {
         return TargetLanguage.fromLanguage(user.getLanguage());
     }
 
-    /**
-     * 파이프라인 완료 시 총 토큰 사용량 로깅
-     */
-    private void logTotalTokenUsage(Long analysisId, long processingTime) {
-        try {
-            GeminiService.SessionTokenUsage tokenUsage = geminiService.getSessionTokenUsage();
-            double processingSeconds = processingTime / 1000.0;
+    // Todo JSON으로 변환
+    private void logRequestProcessingResult(String status, PipelineContext context,
+                                            long processingTimeInMillis) {
+        UUID requestId = context.getRequestId();
+        int inputTokens = context.getInputTokens().get();
+        int outputTokens = context.getOutputTokens().get();
 
-            log.info("═══════════════════════════════════════════════════════════════");
-            log.info("📊 파이프라인 완료 - 토큰 사용량 요약");
-            log.info("═══════════════════════════════════════════════════════════════");
-            log.info("   분석 ID: {}", analysisId);
-            log.info("   처리 시간: {}ms ({}초)", processingTime,
-                String.format("%.1f", processingSeconds));
-            log.info("───────────────────────────────────────────────────────────────");
-            log.info("   입력 토큰 (Input):  {}", String.format("%,d", tokenUsage.inputTokens()));
-            log.info("   출력 토큰 (Output): {}", String.format("%,d", tokenUsage.outputTokens()));
-            log.info("   총 토큰 (Total):    {}", String.format("%,d", tokenUsage.totalTokens()));
-            log.info("═══════════════════════════════════════════════════════════════");
-        } catch (Exception e) {
-            log.debug("토큰 사용량 로깅 실패 (무시): {}", e.getMessage());
-        }
+        double processingTimeInSeconds = processingTimeInMillis / 1000.0;
+
+        log.info("═══════════════════════════════════════════════════════════════");
+        log.info("📊 파이프라인 처리 종료: {}", status);
+        log.info("═══════════════════════════════════════════════════════════════");
+        log.info("   요청 ID: {}", requestId);
+        log.info("   처리 시간: {}ms ({}초)", processingTimeInMillis,
+            String.format("%.1f", processingTimeInSeconds));
+        log.info("─────────────────────토큰 사용량 요약──────────────────────────");
+        log.info("   입력 토큰 (Input):  {}", String.format("%,d", inputTokens));
+        log.info("   출력 토큰 (Output): {}", String.format("%,d", outputTokens));
+        log.info("   총 토큰 (Total):    {}", String.format("%,d", inputTokens + outputTokens));
+        log.info("═══════════════════════════════════════════════════════════════");
     }
 
-    private DocumentAnalysis saveAnalysisResult(UploadFile file, FileType fileType, User user,
-                                                PipelineContext context) {
+    private Long saveAnalysisResult(UploadFile file, FileType fileType, User user,
+                                    PipelineContext context) {
         String extractedText = context.getExtractedText();
         ClassificationResult classification = context.getClassificationResult();
         ExtractionResult extraction = context.getExtractionResult();
@@ -192,144 +188,12 @@ public class DocumentAnalysisPipeline {
                 return null;
             }
 
-            Document document = Document.builder().user(user).title(file.originalName())
-                .description("문서 분석: " + classification.getDocumentType().getDisplayName()).build();
-
-            DocumentFile documentFile = DocumentFile.builder().fileName(file.originalName())
-                .fileType(fileType.name()).fileSize(file.size()).extractedText(extractedText)
-                .pageCount(context.getPageCount() != null ? context.getPageCount() : 1).build();
-
-            DocumentTranslation documentTranslation = DocumentTranslation.builder()
-                .translatedLanguage(context.getTargetLanguage().getLanguageCode())
-                .translatedText(translatedText).summary(summary).build();
-
-            document.addDocumentFile(documentFile);
-            document.addTranslation(documentTranslation);
-            document = documentRepository.save(document);
-
-            String schedulesJson = objectMapper.writeValueAsString(extraction.getSchedules());
-            String additionalInfoJson = objectMapper.writeValueAsString(
-                extraction.getAdditionalInfo());
-            String keywordsStr = classification.getKeywords() != null ? String.join(",",
-                classification.getKeywords()) : "";
-
-            DocumentAnalysis analysis = DocumentAnalysis.builder().document(document)
-                .documentType(classification.getDocumentType())
-                .classificationConfidence(classification.getConfidence())
-                .classificationKeywords(keywordsStr)
-                .classificationReasoning(classification.getReasoning())
-                .extractedSchedulesJson(schedulesJson).additionalInfoJson(additionalInfoJson)
-                .processingTimeMs(System.currentTimeMillis()).ocrMethod(context.getOcrMethod())
-                .totalSteps(TOTAL_STEPS).completedSteps(0)  // 로그 저장 후 업데이트
-                .build();
-
-            analysis = documentAnalysisRepository.save(analysis);
-            log.info("DB 저장 완료: documentId={}, analysisId={}", document.getId(), analysis.getId());
-
-            return analysis;
+            // Todo
+            return null;
 
         } catch (Exception e) {
             log.error("분석 결과 저장 실패", e);
             return null;
-        }
-    }
-
-    /**
-     * 단계별 로그 저장
-     */
-    private void saveStepLogs(DocumentAnalysis analysis, PipelineContext context) {
-        String extractedText = context.getExtractedText();
-        ClassificationResult classification = context.getClassificationResult();
-        ExtractionResult extraction = context.getExtractionResult();
-        List<DifficultExpressionDto> difficultExpressions = context.getDifficultExpressions();
-        String simplifiedKorean = context.getSimplifiedKorean();
-        String translatedText = context.getTranslatedText();
-        String summary = context.getSummary();
-
-        try {
-            int stepOrder = 1;
-
-            // 1. TEXT_EXTRACTION 로그
-            stepLogService.logSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("TEXT_EXTRACTION").stepOrder(stepOrder++)
-                    .promptTemplate("OCR").modelUsed(context.getOcrMethod()).build(), null,
-                String.format("텍스트 추출 완료: %d자", extractedText.length()));
-
-            // 2. CLASSIFICATION 로그
-            stepLogService.logClassificationSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("CLASSIFICATION").stepOrder(stepOrder++)
-                    .inputText(extractedText)
-                    .promptTemplate("DocumentClassifierModule") // Todo 로그 삭제 예정으로 임시 처리
-                    .modelUsed(DocumentClassifierModule.MODEL_NAME)
-                    .temperature(DocumentClassifierModule.TEMPERATURE)
-                    .maxTokens(DocumentClassifierModule.MAX_TOKENS).build(),
-                classification);
-
-            // 3. EXTRACTION 로그
-            String extractionJson = objectMapper.writeValueAsString(extraction);
-            stepLogService.logSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("EXTRACTION").stepOrder(stepOrder++)
-                    .inputText(extractedText)
-                    .promptTemplate("UNIFIED_EXTRACTION_PROMPT") // Todo 로그 삭제 예정으로 임시 처리
-                    .modelUsed(UnifiedExtractorModule.MODEL_NAME)
-                    .temperature(UnifiedExtractorModule.TEMPERATURE)
-                    .maxTokens(UnifiedExtractorModule.MAX_TOKENS).build()
-                , extractionJson,
-                String.format("추출 완료: %d개 일정", extraction.getSchedules().size()));
-
-            // 4. DIFFICULT_EXPRESSIONS 로그
-            String difficultJson = objectMapper.writeValueAsString(difficultExpressions);
-            stepLogService.logSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("DIFFICULT_EXPRESSIONS")
-                    .stepOrder(stepOrder++).inputText(extractedText)
-                    .promptTemplate("DifficultExpressionExtractorModule") // Todo 로그 삭제 예정으로 임시 처리
-                    .modelUsed(DifficultExpressionExtractorModule.MODEL_NAME)
-                    .temperature(DifficultExpressionExtractorModule.TEMPERATURE)
-                    .maxTokens(DifficultExpressionExtractorModule.MAX_TOKENS).build()
-                , difficultJson,
-                String.format("어려운 표현 %d개 추출", difficultExpressions.size())
-            );
-
-            // 5. SIMPLIFICATION 로그
-            stepLogService.logSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("SIMPLIFICATION").stepOrder(stepOrder++)
-                    .inputText(extractedText)
-                    .promptTemplate("KoreanSimplifierModule") // Todo 로그 삭제 예정으로 임시 처리
-                    .modelUsed(KoreanSimplifierModule.MODEL_NAME)
-                    .temperature(KoreanSimplifierModule.TEMPERATURE)
-                    .maxTokens(KoreanSimplifierModule.MAX_TOKENS).build(),
-                simplifiedKorean,
-                String.format("쉬운 한국어 %d자", simplifiedKorean.length()));
-
-            // 6. TRANSLATION 로그
-            stepLogService.logSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("TRANSLATION").stepOrder(stepOrder++)
-                    .inputText(simplifiedKorean)
-                    .promptTemplate("TranslatorModule") // Todo 로그 삭제 예정으로 임시 처리
-                    .modelUsed(TranslatorModule.MODEL_NAME)
-                    .temperature(TranslatorModule.TEMPERATURE)
-                    .maxTokens(TranslatorModule.MAX_TOKENS).build(),
-                translatedText,
-                String.format("번역 완료: %d자 -> %s", translatedText.length(),
-                    context.getTargetLanguage().getDisplayName()));
-
-            // 7. SUMMARIZATION 로그
-            stepLogService.logSuccess(analysis,
-                StepLogService.StepInfo.builder().stepName("SUMMARIZATION").stepOrder(stepOrder)
-                    .inputText(simplifiedKorean)
-                    .promptTemplate("SummarizerModule") // Todo 로그 삭제 예정으로 임시 처리
-                    .modelUsed(SummarizerModule.MODEL_NAME)
-                    .temperature(SummarizerModule.TEMPERATURE)
-                    .maxTokens(SummarizerModule.MAX_TOKENS).build(), summary,
-                String.format("요약 완료: %d자", summary.length()));
-
-            // 분석 완료 카운트 업데이트
-            analysis.updateStepCounts(TOTAL_STEPS, TOTAL_STEPS);
-
-            log.info("단계별 로그 저장 완료: analysisId={}", analysis.getId());
-
-        } catch (Exception e) {
-            log.error("단계별 로그 저장 실패", e);
         }
     }
 

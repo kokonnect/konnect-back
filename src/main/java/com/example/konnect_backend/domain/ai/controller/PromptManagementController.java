@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/ai")
@@ -92,16 +93,15 @@ public class PromptManagementController {
             throw new RuntimeException(e);
         }
 
-        // 원래는 여기있으면 안 됨. 구현 편의 상
+        // 원래는 서비스에 있어야 하나 바뀌지 않고 재사용할 일 없는 로직이므로 편의 상 컨트롤러에 작성
         PipelineContext context = PipelineContext.builder().targetLanguage(TargetLanguage.KOREAN)
-            .completedStage(PipelineContext.PipelineStage.NONE).metadata(new HashMap<>())
+            .requestId(UUID.randomUUID()) // id는 상관없으나 혹시 모를 null 문제 방지
+            .filename(file.originalName())
+            .fileType(file.fileType())
+            .completedStage(PipelineContext.PipelineStage.NONE)
             .processingLogs(new ArrayList<>()).build();
 
-        context.addMetadata("analysisId", -1);
-        context.addMetadata("fileName", file.originalName());
-        context.addMetadata("fileType", file.fileType().name());
-        TextExtractionResult result = textExtractorFacade.extract(file,
-            PipelineContext.builder().build());
+        TextExtractionResult result = textExtractorFacade.extract(file, context);
 
         return ResponseEntity.ok(result.getText());
     }

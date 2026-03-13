@@ -1,14 +1,15 @@
 package com.example.konnect_backend.domain.ai.service.prompt.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
+import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
+import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -42,8 +43,8 @@ public class DocumentClassifierModule implements PromptModule {
     public static final int MAX_TOKENS = 500;
 
     @Override
-    public void process(PromptTemplate promptTemplate, PipelineContext context) {
-        Map<String, String> vars = prepareVars(context);
+    public TokenUsage process(PromptTemplate promptTemplate, PipelineContext context) {
+        Map<String, String> vars = getVars(context);
         String prompt = resolver.resolve(promptTemplate, vars);
 
         long startTime = System.currentTimeMillis();
@@ -51,7 +52,8 @@ public class DocumentClassifierModule implements PromptModule {
             log.info("문서 유형 분류 시작 (Gemini Lite 모델 사용)");
 
             // Gemini Lite 모델 사용 (preferPrimary = false)
-            String response = geminiService.generateSimpleContent(prompt, TEMPERATURE, MAX_TOKENS).response();
+            GeminiCallResult callResult = geminiService.generateSimpleContent(prompt, TEMPERATURE, MAX_TOKENS);
+            String response = callResult.response();
 
             ClassificationResult result = parseClassificationResult(response);
             context.setClassificationResult(result);
@@ -66,19 +68,21 @@ public class DocumentClassifierModule implements PromptModule {
                     result.getKeywords(),
                     PromptUtils.truncateText(result.getReasoning(), 100));
             log.info("문서 분류 소요시간: {} ms", System.currentTimeMillis() - startTime);
+
+            return callResult.tokenUsage();
         } catch (Exception e) {
             log.error("문서 분류 실패", e);
 
             ClassificationResult defaultResult = ClassificationResult.defaultNotice();
             context.setDocumentType(defaultResult.getDocumentType());
-            context.addLog("문서 분류 실패, 기본값(NOTICE) 사용");
             context.setClassificationResult(defaultResult);
+            context.addLog("문서 분류 실패, 기본값(NOTICE) 사용");
 
             throw e;
         }
     }
 
-    private Map<String, String> prepareVars(PipelineContext context) {
+    public Map<String, String> getVars(PipelineContext context) {
         Map<String, String> vars = new HashMap<>();
         vars.put("text", PromptUtils.truncateText(context.getExtractedText(), 4000));
 
