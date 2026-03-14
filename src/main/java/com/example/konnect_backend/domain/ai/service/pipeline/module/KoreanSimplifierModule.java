@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.service.prompt.module;
+package com.example.konnect_backend.domain.ai.service.pipeline.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;

@@ -1,0 +1,38 @@
+<configuration>
+    <!-- 일반 콘솔 로그 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON 콘솔 로그 -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <fieldNames>
+                <logger>[ignore]</logger>
+                <version>[ignore]</version>
+                <timestamp>[ignore]</timestamp>
+                <levelValue>[ignore]</levelValue>
+                <mdc>[ignore]</mdc>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!-- Hibernate SQL 로그의 루트 로거로 전파 방지 -->
+    <logger name="org.hibernate.SQL" level="WARN" additivity="false" />
+
+    <!-- DocumentAnalysisPipeline 내 JSON 로그 전용 로거 -->
+    <logger name="com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline.json" level="INFO" additivity="false">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </logger>
+
+    <!-- GeminiLogService 내 JSON 로그 로거 -->
+    <logger name="com.example.konnect_backend.domain.ai.service.log.GeminiLogService" level="INFO" additivity="false">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </logger>
+</configuration>

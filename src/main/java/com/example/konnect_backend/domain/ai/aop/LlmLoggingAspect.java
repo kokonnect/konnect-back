@@ -4,7 +4,7 @@ import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.service.log.GeminiLogService;
 import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
-import com.example.konnect_backend.domain.ai.service.prompt.module.PromptModule;
+import com.example.konnect_backend.domain.ai.service.pipeline.module.PromptModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -28,7 +28,7 @@ public class LlmLoggingAspect {
     /**
      * GeminiService 반환 시 로깅에 사용할 수 있도록 ThreadLocal 에 모듈명과 프롬프트 버전을 저장한다.
      */
-    @Around(value = "execution(* com.example.konnect_backend.domain.ai.service.prompt.module.PromptModule.process(..)) && args(promptTemplate, context)",
+    @Around(value = "execution(* com.example.konnect_backend.domain.ai.service.pipeline.module.PromptModule.process(..)) && args(promptTemplate, context)",
             argNames = "joinPoint,promptTemplate,context")
     public Object saveModuleNameAndPromptVersionInContext(ProceedingJoinPoint joinPoint,
                                                           PromptTemplate promptTemplate,
@@ -72,15 +72,4 @@ public class LlmLoggingAspect {
             throw e;
         }
     }
-
-    @Around(value = "execution(public * com.example.konnect_backend.domain.ai.infra.GeminiService.*(..))")
-    public Object logTokenUsageForRequest(ProceedingJoinPoint joinPoint) throws Throwable {
-        PromptContext promptContext = PromptContextHolder.get();
-
-        GeminiCallResult callResult = (GeminiCallResult) joinPoint.proceed();
-
-        return callResult;
-    }
-
-
 }

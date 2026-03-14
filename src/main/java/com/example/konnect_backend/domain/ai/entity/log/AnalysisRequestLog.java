@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.ai.entity.log;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,6 +9,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -43,18 +45,24 @@ public class AnalysisRequestLog extends CreatedAtBaseEntity {
     @Column(name = "latency_ms")
     private Integer latencyMs;
 
-    private AnalysisRequestLog(UUID requestUuid, Long userId, String status, Integer latencyMs) {
+    // 시각 통일을 위해 직접 주입
+    @Column(updatable = false, nullable = false)
+    @JsonFormat(timezone = "Asia/Seoul")
+    protected LocalDateTime createdAt;
+
+    private AnalysisRequestLog(UUID requestUuid, Long userId, String status, Integer latencyMs, LocalDateTime createdAt) {
         this.requestUuid = requestUuid;
         this.userId = userId;
         this.status = status;
         this.latencyMs = latencyMs;
+        this.createdAt = createdAt;
     }
 
-    public static AnalysisRequestLog succeed(UUID requestUuid, Long userId, Integer latencyMs) {
-        return new AnalysisRequestLog(requestUuid, userId, "SUCCESS", latencyMs);
+    public static AnalysisRequestLog succeed(UUID requestUuid, Long userId, Integer latencyMs, LocalDateTime createdAt) {
+        return new AnalysisRequestLog(requestUuid, userId, "SUCCESS", latencyMs, createdAt);
     }
 
-    public static AnalysisRequestLog fail(UUID requestUuid, Long userId, Integer latencyMs) {
-        return new AnalysisRequestLog(requestUuid, userId, "FAIL", latencyMs);
+    public static AnalysisRequestLog fail(UUID requestUuid, Long userId, Integer latencyMs, LocalDateTime createdAt) {
+        return new AnalysisRequestLog(requestUuid, userId, "FAIL", latencyMs, createdAt);
     }
 }

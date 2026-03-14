@@ -41,10 +41,11 @@ DROP TABLE IF EXISTS analysis_step_log;
 DROP TABLE IF EXISTS document_file;
 DROP TABLE IF EXISTS document_translation;
 DROP TABLE IF EXISTS document_analysis;
+DROP TABLE IF EXISTS document;
 SET FOREIGN_KEY_CHECKS = 1;
 
 # 사용자의 API 요청 기록
-CREATE TABLE IF NOT EXISTS analyze_request_log
+CREATE TABLE IF NOT EXISTS analysis_request_log
 (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     request_uuid BINARY(16) NOT NULL,
@@ -76,15 +77,4 @@ CREATE TABLE IF NOT EXISTS llm_call_metadata
     INDEX idx_created_at (created_at),
     INDEX idx_status_created (status, created_at),
     INDEX idx_prompt_module_name_created (prompt_module_name, prompt_version, created_at)
-) ENGINE = InnoDB;
-
-# 실제 요청과 응답 (Todo 필요한 데이터만 따로 저장)
-CREATE TABLE IF NOT EXISTS llm_call_raw_data
-(
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    llm_call_id BIGINT NOT NULL,
-    prompt      MEDIUMTEXT,
-    response    MEDIUMTEXT,
-
-    UNIQUE KEY uk_llm_call_id (llm_call_id) -- Metadata 조회 후 내용 호출 시 필수
 ) ENGINE = InnoDB;

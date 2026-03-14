@@ -1,46 +1,53 @@
 package com.example.konnect_backend.domain.ai.service.pipeline;
 
-import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.entity.log.AnalysisRequestLog;
+import com.example.konnect_backend.domain.ai.model.vo.ExtractedText;
 import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.repository.AnalysisRequestLogRepository;
+import com.example.konnect_backend.domain.ai.service.AnalysisHistoryService;
+import com.example.konnect_backend.domain.ai.service.pipeline.module.*;
 import com.example.konnect_backend.domain.ai.service.prompt.management.PromptLoader;
-import com.example.konnect_backend.domain.ai.service.prompt.module.*;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
-import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static com.example.konnect_backend.domain.ai.interceptor.AnalysisInterceptor.REQUEST_ID_KEY;
+import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DocumentAnalysisPipeline {
 
+    private static final Logger jsonLogger = LoggerFactory.getLogger(
+        "com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline.json");
+
     private final PromptLoader promptLoader;
+    private final AnalysisHistoryService analysisHistoryService;
 
     private final TextExtractorFacade textExtractorFacade;
-    private final DocumentClassifierModule classifierModule; // 사용하지 않는 모듈이나 기존 로그와의 호환성을 위해 유지
+    private final DocumentClassifierModule classifierModule;
     private final UnifiedExtractorModule unifiedExtractorModule;
     private final DifficultExpressionExtractorModule difficultExpressionExtractorModule;
     private final KoreanSimplifierModule koreanSimplifierModule;
@@ -49,7 +56,6 @@ public class DocumentAnalysisPipeline {
 
     private final UserRepository userRepository;
     private final AnalysisRequestLogRepository requestLogRepository;
-    private final ObjectMapper objectMapper;
 
     @Transactional
     public DocumentAnalysisResponse analyze(UploadFile file, Long requesterId) {
@@ -59,10 +65,8 @@ public class DocumentAnalysisPipeline {
         TargetLanguage targetLanguage = getTargetLanguage(user);
 
         PipelineContext context = PipelineContext.builder().requestId(requestId)
-            .targetLanguage(targetLanguage)
-            .completedStage(PipelineContext.PipelineStage.NONE)
-            .filename(file.originalName())
-            .fileType(file.fileType())
+            .targetLanguage(targetLanguage).completedStage(PipelineContext.PipelineStage.NONE)
+            .filename(file.originalName()).fileType(file.fileType())
             .processingLogs(new ArrayList<>()).build();
 
         return executePipeline(requestId, file, user, context);
@@ -95,33 +99,38 @@ public class DocumentAnalysisPipeline {
             context.setCompletedStage(PipelineContext.PipelineStage.COMPLETED);
 
             // 전체 요청 수준에서의 기록
+            // 콘솔 로그, AnalysisRequestLog, 번역 기록의 timestamp 는 일치해야 한다.
+            LocalDateTime now = LocalDateTime.now();
             long processingTime = System.currentTimeMillis() - startTime;
 
-            // 1. 총 토큰 사용량 및 처리시간 로그 (Todo 콘솔 → 파일)
-            logRequestProcessingResult("SUCCESS", context, processingTime);
+            // 1. 총 토큰 사용량 및 처리시간 로그
+            logRequestProcessingResult("SUCCESS", context, processingTime, now);
 
             // 2. 요청 처리 기록
             AnalysisRequestLog succeededRequest = AnalysisRequestLog.succeed(requestId,
-                user.getId(),
-                (int) processingTime);
-            requestLogRepository.save(succeededRequest);
+                user == null ? null : user.getId(), (int) processingTime, now);
+            AnalysisRequestLog savedRequestLog = requestLogRepository.save(succeededRequest);
 
-            // 3. 번역 기록 조회용 정보
-            // Todo 번역 기록 조회를 위한 모든 처리 정보 저장
-            Long analysisId = saveAnalysisResult(file, file.fileType(), user, context);
+            // 3. 분석 내역 조회용
+            Long analysisId = analysisHistoryService.saveHistory(user == null ? null : user.getId(),
+                file, context.getTargetLanguage(), savedRequestLog.getId(),
+                new ExtractedText(context.getExtractedText()), context.getTranslatedText(),
+                context.getSummary(), now);
 
-
-            // 성공 응답 생성
             return buildSuccessResponse(analysisId, file, context);
         } catch (Exception e) {
             log.error("문서 분석 파이프라인 실패: requestId={}", requestId, e);
 
+            LocalDateTime now = LocalDateTime.now();
+
             // 실패 요청 기록 저장
             long processingTime = System.currentTimeMillis() - startTime;
 
-            logRequestProcessingResult("FAIL", context, processingTime);
-            AnalysisRequestLog failedRequest = AnalysisRequestLog.fail(requestId, user.getId(),
-                (int) processingTime);
+            logRequestProcessingResult("FAIL", context, processingTime, now);
+
+            AnalysisRequestLog failedRequest = AnalysisRequestLog.fail(requestId,
+                user == null ? null : user.getId(), // 원래 null 이 있으면 안 됨
+                (int) processingTime, now);
             requestLogRepository.save(failedRequest);
 
             throw e;
@@ -152,9 +161,8 @@ public class DocumentAnalysisPipeline {
         return TargetLanguage.fromLanguage(user.getLanguage());
     }
 
-    // Todo JSON으로 변환
     private void logRequestProcessingResult(String status, PipelineContext context,
-                                            long processingTimeInMillis) {
+                                            long processingTimeInMillis, LocalDateTime timestamp) {
         UUID requestId = context.getRequestId();
         int inputTokens = context.getInputTokens().get();
         int outputTokens = context.getOutputTokens().get();
@@ -172,34 +180,14 @@ public class DocumentAnalysisPipeline {
         log.info("   출력 토큰 (Output): {}", String.format("%,d", outputTokens));
         log.info("   총 토큰 (Total):    {}", String.format("%,d", inputTokens + outputTokens));
         log.info("═══════════════════════════════════════════════════════════════");
+
+
+        jsonLogger.info("파이프라인 처리 종료", kv("status", status), kv("request id", requestId),
+            kv("processing time in millis", processingTimeInMillis),
+            kv("input tokens", inputTokens), kv("output tokens", outputTokens),
+            kv("total tokens", inputTokens + outputTokens), kv("timestamp", timestamp));
     }
-
-    private Long saveAnalysisResult(UploadFile file, FileType fileType, User user,
-                                    PipelineContext context) {
-        String extractedText = context.getExtractedText();
-        ClassificationResult classification = context.getClassificationResult();
-        ExtractionResult extraction = context.getExtractionResult();
-        String translatedText = context.getTranslatedText();
-        String summary = context.getSummary();
-
-        try {
-            if (user == null) {
-                log.info("비로그인 사용자 - DB 저장 건너뜀");
-                return null;
-            }
-
-            // Todo
-            return null;
-
-        } catch (Exception e) {
-            log.error("분석 결과 저장 실패", e);
-            return null;
-        }
-    }
-
-    /**
-     * 성공 응답 생성
-     */
+    
     private DocumentAnalysisResponse buildSuccessResponse(Long analysisId, UploadFile file,
                                                           PipelineContext context) {
         String extractedText = context.getExtractedText();
