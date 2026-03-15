@@ -33,6 +33,6 @@ public class NativeSignUpRequest {
     @Schema(description = "선호 언어", example = "KOREAN")
     private Language language;
 
-    @Schema(description = "게스트 액세스 토큰 (선택, 게스트 데이터 병합용)")
-    private String guestToken;
+    @Schema(description = "디바이스 토큰")
+    private String deviceUuid;
 }

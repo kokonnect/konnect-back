@@ -1,0 +1,7 @@
+package com.example.konnect_backend.domain.user.repository;
+
+import com.example.konnect_backend.domain.user.entity.Device;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface DeviceRepository extends JpaRepository<Device, String> {
+}

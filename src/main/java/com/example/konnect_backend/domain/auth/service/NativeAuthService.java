@@ -10,6 +10,7 @@ import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import com.example.konnect_backend.domain.user.repository.SocialAccountRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.domain.user.service.DeviceService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
@@ -35,6 +36,7 @@ public class NativeAuthService {
     private final SocialAccountRepository socialAccountRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final DataMergeService dataMergeService;
+    private final DeviceService deviceService;
 
     /**
      * 소셜 로그인 처리
@@ -60,8 +62,8 @@ public class NativeAuthService {
             // 기존 회원 - JWT 발급
             User user = existingSocialAccount.get().getUser();
 
-            // 게스트 토큰이 있으면 데이터 병합
-            mergeGuestDataIfPresent(request.getGuestAccessToken(), user);
+            // device 연결
+            deviceService.connectDevice(user.getId(), request.getDeviceUuid());
 
             String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
@@ -126,10 +128,10 @@ public class NativeAuthService {
                 .build();
         socialAccountRepository.save(socialAccount);
 
-        // 5. 게스트 데이터 병합 (선택)
-        mergeGuestDataIfPresent(request.getGuestToken(), user);
 
-        // 6. JWT 발급
+        // device 연결
+        deviceService.connectDevice(user.getId(), request.getDeviceUuid());
+
         String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
@@ -137,29 +139,5 @@ public class NativeAuthService {
         return SignUpResponse.of(user.getId(), accessToken, refreshToken);
     }
 
-    /**
-     * 게스트 토큰이 있으면 게스트 데이터를 새 사용자로 병합
-     */
-    private void mergeGuestDataIfPresent(String guestAccessToken, User targetUser) {
-        if (guestAccessToken == null || guestAccessToken.isBlank()) {
-            return;
-        }
 
-        try {
-            String rawToken = guestAccessToken.startsWith("Bearer ")
-                    ? guestAccessToken.substring(7)
-                    : guestAccessToken;
-
-            Long guestId = jwtTokenProvider.getUserId(rawToken);
-            Optional<User> guestOpt = userRepository.findById(guestId);
-
-            if (guestOpt.isPresent() && guestOpt.get().isGuest()) {
-                User guest = guestOpt.get();
-                dataMergeService.mergeGuestToUser(guest, targetUser);
-                log.info("게스트 데이터 병합 완료: guestId={} -> userId={}", guestId, targetUser.getId());
-            }
-        } catch (Exception e) {
-            log.warn("게스트 데이터 병합 실패 (무시): {}", e.getMessage());
-        }
-    }
 }

@@ -22,6 +22,6 @@ public class NativeOAuthRequest {
     @Schema(description = "OAuth 제공자", example = "KAKAO")
     private Provider provider;
 
-    @Schema(description = "게스트 액세스 토큰 (선택, 게스트 데이터 병합용)")
-    private String guestAccessToken;
+    @Schema(description = "디바이스 uuid")
+    private String deviceUuid;
 }

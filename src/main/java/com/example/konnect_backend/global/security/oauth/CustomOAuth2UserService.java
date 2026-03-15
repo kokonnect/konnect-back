@@ -5,6 +5,7 @@ import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import com.example.konnect_backend.domain.user.repository.SocialAccountRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.domain.user.service.DeviceService;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,9 +41,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // 1. 프로바이더별 프로필 추출
         SocialProfile p = extractProfile(provider, oauth.getAttributes());
 
-        // 2. 게스트 토큰 여부 확인
-        Long guestUserId = resolveGuestUserIdFromCookieOptional();
-
         // 3. 기본값 처리
         String email = (p.email() != null && !p.email().isBlank())
                 ? p.email()
@@ -51,13 +49,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 ? p.displayName()
                 : "User-" + p.providerUserId();
 
-        // 4. 유저 생성 or 업데이트
-        User user;
-        if (guestUserId != null) {
-            user = upsertToGuest(provider, p.providerUserId(), email, displayName, guestUserId);
-        } else {
-            user = createNewUserWithSocial(provider, p.providerUserId(), email, displayName);
-        }
+        User user = findOrCreateUser(provider, p.providerUserId(), email, displayName);
 
         // 5. ID null 방지 체크
         if (user.getId() == null) {
@@ -101,81 +93,48 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return new SocialProfile(providerUserId, email, displayName);
     }
 
-    /** 게스트 토큰 쿠키에서 ID 추출 (없으면 null) */
-    private Long resolveGuestUserIdFromCookieOptional() {
-        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attrs == null) return null;
-        HttpServletRequest req = attrs.getRequest();
-        Cookie[] cookies = req.getCookies();
-        if (cookies == null) return null;
-
-        for (Cookie c : cookies) {
-            if ("guestToken".equals(c.getName())) {
-                try {
-                    return jwtTokenProvider.getUserId(c.getValue());
-                } catch (Exception e) {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
-
-    /** 기존 게스트에 소셜 연결 */
     @Transactional
-    protected User upsertToGuest(Provider provider, String providerUserId, String email, String name, Long guestUserId) {
-        User guest = userRepository.findById(guestUserId)
-                .orElseThrow(() -> new OAuth2AuthenticationException("GUEST_NOT_FOUND"));
+    protected User findOrCreateUser(Provider provider,
+                                    String providerUserId,
+                                    String email,
+                                    String name) {
 
-        Optional<SocialAccount> saOpt = socialRepo.findByProviderAndProviderUserId(provider, providerUserId);
+        Optional<SocialAccount> saOpt =
+                socialRepo.findByProviderAndProviderUserId(provider, providerUserId);
+
         if (saOpt.isPresent()) {
-            SocialAccount sa = saOpt.get();
-            if (!sa.getUser().getId().equals(guest.getId())) {
-                sa.changeUser(guest);
-                socialRepo.save(sa);
-            }
-        } else {
-            socialRepo.save(SocialAccount.builder()
-                    .user(guest)
-                    .provider(provider)
-                    .providerUserId(providerUserId)
-                    .build());
+            return saOpt.get().getUser();
         }
 
-        promoteAndFill(guest, email, name);
-        return userRepository.save(guest);
-    }
-
-    /** 새 유저 + 소셜 계정 생성 */
-    @Transactional
-    protected User createNewUserWithSocial(Provider provider, String providerUserId, String email, String name) {
         User newUser = User.builder()
-                .guest(false)
                 .email(email)
                 .name(name)
+                .guest(false)
                 .build();
-        newUser = userRepository.save(newUser); // 저장된 엔티티 반환
 
-        socialRepo.save(SocialAccount.builder()
-                .user(newUser)
-                .provider(provider)
-                .providerUserId(providerUserId)
-                .build());
+        newUser = userRepository.save(newUser);
+
+        socialRepo.save(
+                SocialAccount.builder()
+                        .user(newUser)
+                        .provider(provider)
+                        .providerUserId(providerUserId)
+                        .build()
+        );
 
         return newUser;
-    }
-
-    /** 기본 정보 채움 */
-    private void promoteAndFill(User u, String email, String name) {
-        if (u.isGuest()) u.upgradeToUser();
-        if (u.getEmail() == null || u.getEmail().isBlank()) {
-            u.updateEmail(email != null && !email.isBlank() ? email : "test_" + u.getId() + "@example.com");
-        }
-        if (u.getName() == null || u.getName().isBlank()) {
-            u.updateName(name != null && !name.isBlank() ? name : "User-" + u.getId());
-        }
     }
 
     /** 소셜 프로필 DTO */
     private record SocialProfile(String providerUserId, String email, String displayName) {}
 }
+
+/*
+
+OAuth profile 읽기
+↓
+User 생성 / 조회
+↓
+OAuth2User 반환
+
+*/
