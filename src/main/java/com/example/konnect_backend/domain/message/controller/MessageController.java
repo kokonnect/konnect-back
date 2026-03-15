@@ -45,13 +45,13 @@ public class MessageController {
 
     @GetMapping("/history")
     @Operation(summary = "메시지 번역 히스토리 조회", description = "현재 로그인한 사용자의 메시지 번역 히스토리를 조회합니다.")
-    public ResponseEntity<ApiResponse<List<MessageHistoryResponse>>> getMessageHistory() {
+    public ResponseEntity<ApiResponse<MessageHistoryResponse>> getMessageHistory() {
         try {
             log.info("메시지 히스토리 조회 요청");
 
-            List<MessageHistoryResponse> history = messageTranslationService.getMessageHistory();
+            MessageHistoryResponse history = messageTranslationService.getMessageHistory();
 
-            log.info("메시지 히스토리 조회 완료: 총 {}건", history.size());
+            log.info("메시지 히스토리 조회 완료: 총 {}건", history.getTotalCount());
 
             return ResponseEntity.ok(ApiResponse.onSuccess(history));
 
