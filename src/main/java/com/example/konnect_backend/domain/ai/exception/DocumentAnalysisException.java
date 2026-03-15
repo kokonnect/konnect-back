@@ -8,8 +8,4 @@ public class DocumentAnalysisException extends GeneralException {
     public DocumentAnalysisException(ErrorStatus errorStatus) {
         super(errorStatus);
     }
-
-    public DocumentAnalysisException(ErrorStatus errorStatus, String message) {
-        super(errorStatus);
-    }
 }
