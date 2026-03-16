@@ -28,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static com.example.konnect_backend.domain.ai.interceptor.AnalysisInterceptor.REQUEST_ID_KEY;
 import static net.logstash.logback.argument.StructuredArguments.kv;
@@ -62,6 +66,8 @@ public class DocumentAnalysisPipeline {
 
     private final UserRepository userRepository;
     private final AnalysisRequestLogRepository requestLogRepository;
+
+    private final ThreadPoolTaskExecutor promptExecutor;
 
     @Transactional
     public DocumentAnalysisResponse analyze(UploadFile file, Long requesterId, String deviceUuid) {
@@ -103,11 +109,47 @@ public class DocumentAnalysisPipeline {
 
             textExtractorFacade.extract(file, context);
 
-            for (PromptModule module : modules) {
-                PromptTemplate promptTemplate = promptLoader.getActivePromptTemplate(
-                    module.getModuleName());
-                TokenUsage tokenUsage = module.process(promptTemplate, context);
-                context.accTokenUsage(tokenUsage);
+//            for (PromptModule module : modules) {
+//                PromptTemplate promptTemplate = promptLoader.getActivePromptTemplate(
+//                    module.getModuleName());
+//                TokenUsage tokenUsage = module.process(promptTemplate, context);
+//                context.accTokenUsage(tokenUsage);
+//            }
+
+            CompletableFuture<Void> classification = CompletableFuture.runAsync(() -> {
+                executeModuleAndAccTokenUsage(classifierModule, context);
+            }, promptExecutor);
+
+            CompletableFuture<Void> extraction = CompletableFuture.runAsync(() -> {
+                executeModuleAndAccTokenUsage(unifiedExtractorModule, context);
+            }, promptExecutor);
+
+            CompletableFuture<Void> difficultExpression = CompletableFuture.runAsync(() -> {
+                executeModuleAndAccTokenUsage(difficultExpressionExtractorModule, context);
+            }, promptExecutor);
+
+            CompletableFuture<Void> simplification = CompletableFuture.runAsync(() -> {
+                executeModuleAndAccTokenUsage(koreanSimplifierModule, context);
+            }, promptExecutor).thenCompose(_ignored -> CompletableFuture.allOf(
+                CompletableFuture.runAsync(() -> {
+                    executeModuleAndAccTokenUsage(translatorModule, context);
+                }, promptExecutor),
+                CompletableFuture.runAsync(() -> {
+                    executeModuleAndAccTokenUsage(summarizerModule, context);
+                }, promptExecutor)
+            ));
+
+            List<CompletableFuture<Void>> futures = new ArrayList<>(
+                List.of(classification, extraction, difficultExpression, simplification));
+
+            CompletableFuture<Void> all = CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+            );
+            try {
+                CompletableFuture.allOf(all).join();
+            } catch (CompletionException e) {
+                futures.forEach(f -> f.cancel(true));
+                throw e; // 또는 원인 예외 unwrap
             }
 
             context.setCompletedStage(PipelineContext.PipelineStage.COMPLETED);
@@ -156,6 +198,12 @@ public class DocumentAnalysisPipeline {
 
             throw e;
         }
+    }
+
+    private void executeModuleAndAccTokenUsage(PromptModule module, PipelineContext context) {
+        PromptTemplate promptTemplate = promptLoader.getActivePromptTemplate(module.getModuleName());
+        TokenUsage tokenUsage = module.process(promptTemplate, context);
+        context.accTokenUsage(tokenUsage);
     }
 
     private User getUser(Long userId) {
