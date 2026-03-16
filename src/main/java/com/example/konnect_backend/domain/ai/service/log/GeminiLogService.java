@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +27,6 @@ public class GeminiLogService {
     private final LlmCallMetadataRepository metadataRepository;
     private final ObjectMapper objectMapper;
 
-    @Async("loggingExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveLog(UUID requestId, @Nullable GeminiCallResult result, PromptContext context,
                         int latency) throws JsonProcessingException {
