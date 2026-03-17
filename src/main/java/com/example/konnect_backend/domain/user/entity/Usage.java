@@ -1,6 +1,7 @@
 package com.example.konnect_backend.domain.user.entity;
 
 import com.example.konnect_backend.domain.user.entity.status.IdentityType;
+import com.example.konnect_backend.domain.user.entity.status.UsageType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,9 +16,10 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 @Table(
+        name="user_usage",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_usage_identity_date",
-                columnNames = {"identityType", "identityKey", "date"}
+                columnNames = {"identityType", "identityKey", "usageType", "date"}
         )
 )
 public class Usage {
@@ -28,6 +30,9 @@ public class Usage {
 
     @Enumerated(EnumType.STRING)
     private IdentityType identityType;
+
+    @Enumerated(EnumType.STRING)
+    private UsageType usageType;
 
     private String identityKey;
 

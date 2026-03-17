@@ -44,6 +44,8 @@ public enum ErrorStatus implements BaseErrorCode {
     CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "CHILD4001", "자녀를 찾을 수 없습니다."),
     FORBIDDEN_ACCESS(HttpStatus.FORBIDDEN, "AUTH403", "접근 권한이 없습니다."),
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE4001", "일정을 찾을 수 없습니다."),
+    INVALID_DEVICE(HttpStatus.BAD_REQUEST,"DEVICE4001", "디바이스를 찾을 수 없습니다."),
+    USAGE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "USAGE4001", "사용량이 한계에 도달하였습니다."),
 
 
     // Chat Error
