@@ -62,6 +62,8 @@ public class NativeAuthService {
             // 기존 회원 - JWT 발급
             User user = existingSocialAccount.get().getUser();
 
+            dataMergeService.mergeGuestToUser(request.getDeviceUuid(), user.getId());
+
             // device 연결
             deviceService.connectDevice(user.getId(), request.getDeviceUuid());
 
@@ -128,6 +130,7 @@ public class NativeAuthService {
                 .build();
         socialAccountRepository.save(socialAccount);
 
+        dataMergeService.mergeGuestToUser(request.getDeviceUuid(), user.getId());
 
         // device 연결
         deviceService.connectDevice(user.getId(), request.getDeviceUuid());

@@ -4,6 +4,8 @@ import com.example.konnect_backend.domain.user.entity.Device;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.repository.DeviceRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.global.code.status.ErrorStatus;
+import com.example.konnect_backend.global.exception.GeneralException;
 import com.google.cloud.Timestamp;
 import lombok.RequiredArgsConstructor;
 
@@ -52,7 +54,7 @@ public class DeviceService {
 
         Device device = findOrCreateDevice(deviceUuid);
 
-        User user = userRepository.findById(userId).orElseThrow();
+        User user = userRepository.findById(userId).orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         if (device.getUser() == null || device.getUser().isGuest()) {
             device.updateUser(user);

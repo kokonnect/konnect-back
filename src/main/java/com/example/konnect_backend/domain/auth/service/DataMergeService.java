@@ -7,17 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service
-@RequiredArgsConstructor
-public class DataMergeService {
-
-    private final ChildRepository childRepository;
-
-    /** 게스트가 만든 데이터(Child 등)를 실제 유저로 이전 */
-    @Transactional
-    public void mergeGuestToUser(User guest, User realUser) {
-        if (guest == null || realUser == null || guest.getId().equals(realUser.getId())) return;
-        childRepository.reassignOwner(guest, realUser);
-        // 필요 시 다른 도메인(초안, 파일 등)도 같은 방식으로 추가
-    }
+public interface DataMergeService {
+    void mergeGuestToUser(String deviceUuid, Long userId);
 }
