@@ -21,16 +21,14 @@ public class DeviceService {
 
     @Transactional
     public void registerDevice(String deviceUuid) {
-
-        if (deviceRepository.existsById(deviceUuid)) {
-            return;
-        }
-
-        Device device = Device.builder()
-                .deviceUuid(deviceUuid)
-                .build();
-
-        deviceRepository.save(device);
+        deviceRepository.findById(deviceUuid)
+                .orElseGet(() ->
+                        deviceRepository.save(
+                                Device.builder()
+                                        .deviceUuid(deviceUuid)
+                                        .build()
+                        )
+                );
     }
 
 

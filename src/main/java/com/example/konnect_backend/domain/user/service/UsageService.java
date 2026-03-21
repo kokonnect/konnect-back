@@ -26,27 +26,27 @@ public class UsageService {
     {
         LocalDate today = LocalDate.now();
 
-        Usage usage = usageRepository
-                .findByIdentityTypeAndIdentityKeyAndUsageTypeAndDate(type, key, usageType, today)
-                .orElseGet(() ->
-                        usageRepository.save(
-                                Usage.builder()
-                                        .identityType(type)
-                                        .identityKey(key)
-                                        .usageType(usageType)
-                                        .date(today)
-                                        .count(0)
-                                        .build()
-                        )
-                );
+        // 1. 먼저 row 없으면 생성
+        usageRepository.findByIdentityTypeAndIdentityKeyAndUsageTypeAndDate(
+                type, key, usageType, today
+        ).orElseGet(() ->
+                usageRepository.save(
+                        Usage.builder()
+                                .identityType(type)
+                                .identityKey(key)
+                                .usageType(usageType)
+                                .date(today)
+                                .count(0)
+                                .build()
+                )
+        );
 
-        if (usage.getCount() >= limit) {
-            return false;
-        }
+        // 2. 증가 시도 (atomic)
+        int updated = usageRepository.increaseIfUnderLimit(
+                type, key, usageType, today, limit
+        );
 
-        usage.increase();
-
-        return true;
+        return updated > 0;
     }
 
 }

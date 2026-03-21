@@ -69,6 +69,10 @@ public class UsageFacade {
 
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
 
+        if (userId == null && (deviceUuid == null || deviceUuid.isBlank())) {
+            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+        }
+
         boolean isGuest = (userId == null);
 
         int documentUsed = getUsedCount(userId, deviceUuid, UsageType.DOCUMENT);
