@@ -43,11 +43,16 @@ public class PromptTemplateResolver {
         String resolved = template;
 
         for (Map.Entry<String, String> entry : vars.entrySet()) {
-            if (entry.getValue().trim().isBlank())
-                throw new GeneralException(ErrorStatus.PROMPT_TEMPLATE_RESOLUTION_FAILED);
 
-            String target = Pattern.quote("{{" + entry.getKey() + "}}");
-            resolved = resolved.replaceAll(target, entry.getValue());
+            String value = entry.getValue();
+
+            if (value == null || value.isBlank()) {
+                throw new GeneralException(ErrorStatus.PROMPT_TEMPLATE_RESOLUTION_FAILED);
+            }
+
+            String target = "{{" + entry.getKey() + "}}";
+
+            resolved = resolved.replace(target, value); // 🔥 replace 사용
         }
 
         return resolved;

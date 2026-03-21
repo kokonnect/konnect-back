@@ -21,6 +21,9 @@ public class DeviceService {
 
     @Transactional
     public void registerDevice(String deviceUuid) {
+        if (deviceUuid == null || deviceUuid.isBlank()) {
+            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+        }
         deviceRepository.findById(deviceUuid)
                 .orElseGet(() ->
                         deviceRepository.save(
@@ -48,7 +51,9 @@ public class DeviceService {
     @Transactional
     public void connectDevice(Long userId, String deviceUuid) {
 
-        if (deviceUuid == null) return;
+        if (userId == null && (deviceUuid == null || deviceUuid.isBlank())) {
+            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+        }
 
         Device device = findOrCreateDevice(deviceUuid);
 

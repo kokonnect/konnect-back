@@ -17,13 +17,17 @@ public class SecurityUtil {
         Object principal = authentication.getPrincipal();
 
         if (principal instanceof String str) {
-            return Long.valueOf(str);
+            try {
+                return Long.valueOf(str);
+            } catch (NumberFormatException e) {
+                return null; // 익명 사용자 처리
+            }
         }
 
         return null;
     }
 
     public static String getDeviceUuid(HttpServletRequest request) {
-        return request.getHeader("X-Device-UUID");
+        return request.getHeader("X-Device-Id");
     }
 }

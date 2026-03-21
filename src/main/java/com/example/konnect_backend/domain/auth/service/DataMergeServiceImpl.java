@@ -21,7 +21,7 @@ public class DataMergeServiceImpl implements DataMergeService {
     public void mergeGuestToUser(String deviceUuid, Long userId) {
 
         Device device = deviceRepository.findById(deviceUuid)
-                .orElseThrow(() -> new RuntimeException("device not found"));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.INVALID_DEVICE));
 
         User guestUser = device.getUser();
 
