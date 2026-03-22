@@ -16,7 +16,9 @@ import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractor
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
+import com.example.konnect_backend.domain.user.entity.status.UsageType;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.domain.user.service.UsageFacade;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,7 @@ public class DocumentAnalysisPipeline {
 
     private final PromptLoader promptLoader;
     private final AnalysisHistoryService analysisHistoryService;
+    private final UsageFacade usageFacade;
 
     private final TextExtractorFacade textExtractorFacade;
     private final DocumentClassifierModule classifierModule;
@@ -58,22 +61,30 @@ public class DocumentAnalysisPipeline {
     private final AnalysisRequestLogRepository requestLogRepository;
 
     @Transactional
-    public DocumentAnalysisResponse analyze(UploadFile file, Long requesterId) {
+    public DocumentAnalysisResponse analyze(UploadFile file, Long requesterId, String deviceUuid) {
+
+        // 사용량 증가
+        usageFacade.validateAndIncrease(UsageType.DOCUMENT, deviceUuid);
+
         UUID requestId = UUID.fromString(MDC.get(REQUEST_ID_KEY));
         log.debug("[analyze] requestId: {}", requestId);
         User user = getUser(requesterId);
         TargetLanguage targetLanguage = getTargetLanguage(user);
 
-        PipelineContext context = PipelineContext.builder().requestId(requestId)
-            .targetLanguage(targetLanguage).completedStage(PipelineContext.PipelineStage.NONE)
-            .filename(file.originalName()).fileType(file.fileType())
-            .processingLogs(new ArrayList<>()).build();
+        PipelineContext context = PipelineContext.builder()
+                .requestId(requestId)
+                .targetLanguage(targetLanguage)
+                .completedStage(PipelineContext.PipelineStage.NONE)
+                .filename(file.originalName())
+                .fileType(file.fileType())
+                .processingLogs(new ArrayList<>())
+                .build();
 
-        return executePipeline(requestId, file, user, context);
+        return executePipeline(requestId, file, user, deviceUuid, context);
     }
 
     private DocumentAnalysisResponse executePipeline(UUID requestId, UploadFile file, User user,
-                                                     PipelineContext context) {
+                                                     String deviceUuid, PipelineContext context) {
         long startTime = System.currentTimeMillis();
 
         final List<String> stages = List.of("INIT", "TEXT_EXTRACTION", "CLASSIFICATION",
@@ -112,10 +123,17 @@ public class DocumentAnalysisPipeline {
             AnalysisRequestLog savedRequestLog = requestLogRepository.save(succeededRequest);
 
             // 3. 분석 내역 조회용
-            Long analysisId = analysisHistoryService.saveHistory(user == null ? null : user.getId(),
-                file, context.getTargetLanguage(), savedRequestLog.getId(),
-                new ExtractedText(context.getExtractedText()), context.getTranslatedText(),
-                context.getSummary(), now);
+            Long analysisId = analysisHistoryService.saveHistory(
+                    user == null ? null : user.getId(),
+                    deviceUuid,
+                    file,
+                    context.getTargetLanguage(),
+                    savedRequestLog.getId(),
+                    new ExtractedText(context.getExtractedText()),
+                    context.getTranslatedText(),
+                    context.getSummary(),
+                    now
+            );
 
             return buildSuccessResponse(analysisId, file, context);
         } catch (Exception e) {
@@ -138,7 +156,7 @@ public class DocumentAnalysisPipeline {
     }
 
     private User getUser(Long userId) {
-        // 미인증 사용자 (테스트용)
+        // 미인증 사용자 (게스트용)
         if (userId == null) {
             return null;
         }

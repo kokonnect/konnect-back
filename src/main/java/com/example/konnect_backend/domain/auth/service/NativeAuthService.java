@@ -36,7 +36,6 @@ public class NativeAuthService {
     private final SocialAccountRepository socialAccountRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final DataMergeService dataMergeService;
-    private final DeviceService deviceService;
 
     /**
      * 소셜 로그인 처리
@@ -63,9 +62,6 @@ public class NativeAuthService {
             User user = existingSocialAccount.get().getUser();
 
             dataMergeService.mergeGuestToUser(request.getDeviceUuid(), user.getId());
-
-            // device 연결
-            deviceService.connectDevice(user.getId(), request.getDeviceUuid());
 
             String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
@@ -131,9 +127,6 @@ public class NativeAuthService {
         socialAccountRepository.save(socialAccount);
 
         dataMergeService.mergeGuestToUser(request.getDeviceUuid(), user.getId());
-
-        // device 연결
-        deviceService.connectDevice(user.getId(), request.getDeviceUuid());
 
         String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());

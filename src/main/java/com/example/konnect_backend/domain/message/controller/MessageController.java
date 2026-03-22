@@ -27,13 +27,12 @@ public class MessageController {
     @PostMapping("/compose")
     @Operation(summary = "메시지 번역 작성", description = "메시지를 사용자 설정 언어로 번역합니다.")
     public ResponseEntity<ApiResponse<MessageComposeResponse>> composeMessage(
+            @RequestHeader("X-Device-Id") String deviceUuid,
             @RequestBody @Valid MessageComposeRequest request) {
         
         try {
-            log.info("메시지 번역 요청: 메시지 길이={}, 대상언어={}", 
-                    request.getMessage().length(), request.getTargetLanguage());
-            
-            MessageComposeResponse response = messageTranslationService.translateMessage(request);
+            MessageComposeResponse response =
+                    messageTranslationService.translateMessage(request, deviceUuid);
             
             return ResponseEntity.ok(ApiResponse.onSuccess(response));
             
@@ -45,11 +44,11 @@ public class MessageController {
 
     @GetMapping("/history")
     @Operation(summary = "메시지 번역 히스토리 조회", description = "현재 로그인한 사용자의 메시지 번역 히스토리를 조회합니다.")
-    public ResponseEntity<ApiResponse<List<MessageHistoryResponse>>> getMessageHistory() {
+    public ResponseEntity<ApiResponse<List<MessageHistoryResponse>>> getMessageHistory(@RequestHeader("X-Device-Id") String deviceUuid) {
         try {
             log.info("메시지 히스토리 조회 요청");
 
-            List<MessageHistoryResponse> history = messageTranslationService.getMessageHistory();
+            List<MessageHistoryResponse> history = messageTranslationService.getMessageHistory(deviceUuid);
 
             log.info("메시지 히스토리 조회 완료: 총 {}건", history.size());
 

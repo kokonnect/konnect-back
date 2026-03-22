@@ -35,6 +35,9 @@ public class AnalysisHistory {
     @Enumerated(EnumType.STRING)
     private FileType fileType;
 
+    @Column(name = "device_uuid")
+    private String deviceUuid;
+
     @Lob
     @Column(name = "extracted_text", columnDefinition = "TEXT")
     private String extractedText;
@@ -55,11 +58,21 @@ public class AnalysisHistory {
     protected LocalDateTime createdAt;
 
     @Builder
-    public AnalysisHistory(Long requestLogId, Long userId, String fileName, FileType fileType,
-                           String extractedText, String translatedLanguage, String translatedText,
-                           String summary, LocalDateTime createdAt) {
+    public AnalysisHistory(
+            Long requestLogId,
+            Long userId,
+            String deviceUuid,
+            String fileName,
+            FileType fileType,
+            String extractedText,
+            String translatedLanguage,
+            String translatedText,
+            String summary,
+            LocalDateTime createdAt
+    ) {
         this.requestLogId = requestLogId;
         this.userId = userId;
+        this.deviceUuid = deviceUuid;
         this.fileName = fileName;
         this.fileType = fileType;
         this.extractedText = extractedText;
@@ -68,4 +81,6 @@ public class AnalysisHistory {
         this.summary = summary;
         this.createdAt = createdAt;
     }
+
+
 }

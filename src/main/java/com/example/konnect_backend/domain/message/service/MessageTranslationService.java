@@ -8,7 +8,9 @@ import com.example.konnect_backend.domain.message.entity.UserGeneratedMessage;
 import com.example.konnect_backend.domain.message.repository.UserGeneratedMessageRepository;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
+import com.example.konnect_backend.domain.user.entity.status.UsageType;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.domain.user.service.UsageFacade;
 import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.security.SecurityUtil;
@@ -36,6 +38,7 @@ public class MessageTranslationService {
     private final GeminiService geminiService;
     private final UserRepository userRepository;
     private final UserGeneratedMessageRepository userGeneratedMessageRepository;
+    private final UsageFacade usageFacade;
 
     private static final String MESSAGE_TRANSLATION_PROMPT_TEMPLATE = """
             다음 메시지를 %s로 번역해주세요.
@@ -53,12 +56,11 @@ public class MessageTranslationService {
             """;
 
     @Transactional
-    public MessageComposeResponse translateMessage(MessageComposeRequest request) {
+    public MessageComposeResponse translateMessage(MessageComposeRequest request, String deviceUuid){
         long startTime = System.currentTimeMillis();
 
         try {
-            log.info("메시지 번역 시작 (Gemini Lite): 메시지 길이={}", request.getMessage().length());
-
+            usageFacade.validateAndIncrease(UsageType.MESSAGE, deviceUuid);
             // 현재 로그인한 사용자 정보 가져오기 (게스트 사용자 포함)
             Long userId = SecurityUtil.getCurrentUserIdOrNull();
             User user = null;
@@ -75,23 +77,28 @@ public class MessageTranslationService {
             // 메시지 번역
             String translatedMessage = translateText(request.getMessage(), targetLanguageName);
 
-            // 로그인한 사용자인 경우 DB에 저장
+            UserGeneratedMessage entity;
+
             if (user != null) {
-                UserGeneratedMessage userGeneratedMessage = UserGeneratedMessage.builder()
+                entity = UserGeneratedMessage.builder()
                         .user(user)
+                        .deviceUuid(null)
                         .inputPrompt(request.getMessage())
                         .generatedKorean(translatedMessage)
                         .build();
-                userGeneratedMessageRepository.save(userGeneratedMessage);
-                log.info("번역 결과 DB 저장 완료: userId={}", user.getId());
             } else {
-                log.info("게스트 사용자는 DB에 저장하지 않음");
+                entity = UserGeneratedMessage.builder()
+                        .user(null)
+                        .deviceUuid(deviceUuid)
+                        .inputPrompt(request.getMessage())
+                        .generatedKorean(translatedMessage)
+                        .build();
             }
+
+            userGeneratedMessageRepository.save(entity);
 
             long endTime = System.currentTimeMillis();
             long processingTime = endTime - startTime;
-
-            log.info("메시지 번역 완료: 처리시간={}ms", processingTime);
 
             return MessageComposeResponse.builder()
                     .originalMessage(request.getMessage())
@@ -112,23 +119,27 @@ public class MessageTranslationService {
      * 현재 로그인한 사용자의 메시지 번역 히스토리 조회
      */
     @Transactional(readOnly = true)
-    public List<MessageHistoryResponse> getMessageHistory() {
-        // 현재 로그인한 사용자 조회
+    public List<MessageHistoryResponse> getMessageHistory(String deviceUuid) {
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        if (userId == null) {
-            throw new GeneralException(ErrorStatus.UNAUTHORIZED);
+
+        List<UserGeneratedMessage> messages;
+
+        if (userId != null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+            messages = userGeneratedMessageRepository
+                    .findByUserOrderByCreatedAtDesc(user);
+
+        } else {
+            if (deviceUuid == null || deviceUuid.isBlank()) {
+                throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+            }
+
+            messages = userGeneratedMessageRepository
+                    .findByDeviceUuidOrderByCreatedAtDesc(deviceUuid);
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
-
-        log.info("메시지 히스토리 조회: userId={}", userId);
-
-        // 사용자의 생성된 메시지 목록 조회 (최신순)
-        List<UserGeneratedMessage> messages = userGeneratedMessageRepository
-                .findByUserOrderByCreatedAtDesc(user);
-
-        log.info("조회된 메시지 개수: {}", messages.size());
 
         // DTO로 변환
         return messages.stream()

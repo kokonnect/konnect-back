@@ -3,6 +3,8 @@ package com.example.konnect_backend.domain.message.repository;
 import com.example.konnect_backend.domain.message.entity.UserGeneratedMessage;
 import com.example.konnect_backend.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,4 +21,15 @@ public interface UserGeneratedMessageRepository extends JpaRepository<UserGenera
      * 사용자별 생성된 메시지 개수 조회
      */
     Long countByUser(User user);
+
+    List<UserGeneratedMessage> findByDeviceUuidOrderByCreatedAtDesc(String deviceUuid);
+
+    @Modifying
+    @Query("""
+UPDATE UserGeneratedMessage m
+SET m.user = :user
+WHERE m.deviceUuid = :deviceUuid
+  AND m.user IS NULL
+""")
+    int migrateGuestToUser(User user, String deviceUuid);
 }

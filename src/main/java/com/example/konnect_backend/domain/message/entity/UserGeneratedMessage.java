@@ -27,4 +27,20 @@ public class UserGeneratedMessage extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String generatedKorean;
+
+    @Column(name = "device_uuid")
+    private String deviceUuid;
+
+    @Builder
+    public UserGeneratedMessage(
+            User user,
+            String deviceUuid,
+            String inputPrompt,
+            String generatedKorean
+    ) {
+        this.user = user;
+        this.deviceUuid = deviceUuid;
+        this.inputPrompt = inputPrompt;
+        this.generatedKorean = generatedKorean;
+    }
 }
