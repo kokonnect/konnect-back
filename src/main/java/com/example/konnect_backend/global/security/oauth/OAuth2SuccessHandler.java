@@ -33,8 +33,9 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String providerUserId = String.valueOf(oAuth2User.getAttribute("providerUserId"));
 
         String deviceUuid = request.getHeader("X-Device-Id");
-        deviceService.connectDevice(userId, deviceUuid);
-
+        if (deviceUuid != null && !deviceUuid.isBlank()) {
+            deviceService.connectDevice(userId, deviceUuid);
+        }
         // Access Token과 Refresh Token 모두 발급
         String accessToken = jwtTokenProvider.createToken(userId, "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(userId);
