@@ -22,18 +22,18 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @PostMapping("/guest")
-    @Operation(
-            summary = "게스트 토큰 발급",
-            description = "게스트용 계정을 생성하고 토큰을 발급합니다. 앱에서 로그인 전에 사용할 수 있습니다."
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OK, 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청입니다.", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
-    })
-    public ApiResponse<AuthResponse> issueGuest(@Valid @RequestBody GuestTokenRequest request) {
-        return ApiResponse.onSuccess(authService.issueGuest(request.getLanguage()));
-    }
+//    @PostMapping("/guest")
+//    @Operation(
+//            summary = "게스트 토큰 발급",
+//            description = "게스트용 계정을 생성하고 토큰을 발급합니다. 앱에서 로그인 전에 사용할 수 있습니다."
+//    )
+//    @ApiResponses(value = {
+//            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OK, 성공"),
+//            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청입니다.", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+//    })
+//    public ApiResponse<AuthResponse> issueGuest(@Valid @RequestBody GuestTokenRequest request) {
+//        return ApiResponse.onSuccess(authService.issueGuest(request.getLanguage()));
+//    }
 
     @PostMapping("/refresh")
     @Operation(

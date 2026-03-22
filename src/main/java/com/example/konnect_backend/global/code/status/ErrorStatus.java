@@ -44,6 +44,8 @@ public enum ErrorStatus implements BaseErrorCode {
     CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "CHILD4001", "자녀를 찾을 수 없습니다."),
     FORBIDDEN_ACCESS(HttpStatus.FORBIDDEN, "AUTH403", "접근 권한이 없습니다."),
     SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "SCHEDULE4001", "일정을 찾을 수 없습니다."),
+    INVALID_DEVICE(HttpStatus.BAD_REQUEST,"DEVICE4001", "디바이스를 찾을 수 없습니다."),
+    USAGE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "USAGE4001", "사용량이 한계에 도달하였습니다."),
 
 
     // Chat Error
@@ -102,7 +104,14 @@ public enum ErrorStatus implements BaseErrorCode {
 
     // School API Errors
     SCHOOL_API_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "SCHOOL5001", "학교 정보 조회에 실패했습니다."),
-    INVALID_REGION_CODE(HttpStatus.BAD_REQUEST, "SCHOOL4001", "유효하지 않은 지역 코드입니다.");
+    INVALID_REGION_CODE(HttpStatus.BAD_REQUEST, "SCHOOL4001", "유효하지 않은 지역 코드입니다."),
+
+    // Prompt Errors
+    PROMPT_NOT_FOUND(HttpStatus.NOT_FOUND, "PROMPT4001", "요청한 프롬프트 템플릿이 존재하지 않습니다."), 
+    INVALID_AI_MODEL(HttpStatus.BAD_REQUEST, "PROMPT4002", "올바르지 않은 AI 모델입니다."),
+    INVALID_MODULE_NAME(HttpStatus.BAD_REQUEST, "PROMPT4003", "올바르지 않은 모듈명입니다."), // V1은 코드에서 생성 필요
+    PROMPT_TEMPLATE_RESOLUTION_FAILED(HttpStatus.BAD_REQUEST, "PROMPT4004", "입력 변수 누락으로 템플릿을 완성하지 못했습니다."),
+    INVALID_PROMPT_TEMPLATE(HttpStatus.BAD_REQUEST, "PROMPT4005", "올바르지 않은 프롬프트입니다.");
 
 
 

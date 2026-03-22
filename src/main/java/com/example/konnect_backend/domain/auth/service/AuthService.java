@@ -1,9 +1,11 @@
 package com.example.konnect_backend.domain.auth.service;
 
 import com.example.konnect_backend.domain.auth.dto.response.AuthResponse;
+import com.example.konnect_backend.domain.user.entity.Device;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.domain.user.service.DeviceService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
@@ -20,26 +22,26 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
-
-    /**
-     * 게스트 토큰 발급
-     * - 게스트 User 레코드 생성
-     * - guest=true 상태로 생성
-     */
-    @Transactional
-    public AuthResponse issueGuest(Language language) {
-        User guest = User.builder()
-                .guest(true)
-                .language(language)
-                .build();
-        User saved = userRepository.save(guest);
-
-        String accessToken = jwtTokenProvider.createToken(saved.getId(), "GUEST");
-        String refreshToken = jwtTokenProvider.createRefreshToken(saved.getId());
-
-        log.info("게스트 토큰 발급: userId={}", saved.getId());
-        return AuthResponse.of(accessToken, refreshToken, saved.getId(), "GUEST");
-    }
+    private final DeviceService deviceService;
+//    /**
+//     * 게스트 토큰 발급
+//     * - 게스트 User 레코드 생성
+//     * - guest=true 상태로 생성
+//     */
+//    @Transactional
+//    public AuthResponse issueGuest(Language language) {
+//        User guest = User.builder()
+//                .guest(true)
+//                .language(language)
+//                .build();
+//        User saved = userRepository.save(guest);
+//
+////        String accessToken = jwtTokenProvider. createToken(saved.getId(), );
+//        String refreshToken = jwtTokenProvider.createRefreshToken(saved.getId());
+//
+//        log.info("게스트 토큰 발급: userId={}", saved.getId());
+//        return AuthResponse.of(accessToken, refreshToken, saved.getId(), "GUEST");
+//    }
 
     /**
      * 토큰 재발급
@@ -54,7 +56,7 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
-        String newAccessToken = jwtTokenProvider.createToken(user.getId(), user.isGuest() ? "GUEST" : "USER");
+        String newAccessToken = jwtTokenProvider.createToken(user.getId(), "USER");
         String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
         log.info("토큰 재발급: userId={}", user.getId());

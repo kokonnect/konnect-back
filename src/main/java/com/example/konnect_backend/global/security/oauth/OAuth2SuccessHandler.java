@@ -1,5 +1,6 @@
 package com.example.konnect_backend.global.security.oauth;
 
+import com.example.konnect_backend.domain.user.service.DeviceService;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ import java.io.IOException;
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final DeviceService deviceService;
 
     @Value("${frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -30,6 +32,10 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         Long userId = ((Number) oAuth2User.getAttribute("userId")).longValue();
         String providerUserId = String.valueOf(oAuth2User.getAttribute("providerUserId"));
 
+        String deviceUuid = request.getHeader("X-Device-Id");
+        if (deviceUuid != null && !deviceUuid.isBlank()) {
+            deviceService.connectDevice(userId, deviceUuid);
+        }
         // Access Token과 Refresh Token 모두 발급
         String accessToken = jwtTokenProvider.createToken(userId, "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(userId);
@@ -42,3 +48,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     }
 
 }
+
+/*
+device_uuid 읽기
+↓
+device ↔ user 연결
+↓
+JWT 발급
+↓
+redirect
+*/
