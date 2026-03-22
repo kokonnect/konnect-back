@@ -34,7 +34,7 @@ public class JwtTokenProvider {
     }
 
     /**  새 방식: userId + role(GUEST/USER) 을 토큰에 넣기 */
-    public String createToken(Long userId, String role) {
+    public String  createToken(Long userId, String role) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + validityInMilliseconds);
 

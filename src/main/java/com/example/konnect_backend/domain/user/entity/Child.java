@@ -13,6 +13,7 @@ import java.util.Date;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name="child")
 public class Child extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

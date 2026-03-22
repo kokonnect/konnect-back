@@ -53,6 +53,9 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	// 로그백 JSON 인코더
+	implementation 'net.logstash.logback:logstash-logback-encoder:9.0'
+	
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
