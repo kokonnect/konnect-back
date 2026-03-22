@@ -33,7 +33,7 @@ public class AIController {
     @PostMapping(value = "/analyze", consumes = "multipart/form-data")
     @Operation(summary = "가정통신문 분석", description = "가정통신문(PDF/이미지)을 분석하여 문서 유형 분류, 일정 추출, 번역, 요약을 수행합니다. " + "사용자 설정 언어로 자동 번역됩니다. 중간에 실패 시 analysisId를 사용하여 재시도할 수 있습니다.")
     public ResponseEntity<ApiResponse<DocumentAnalysisResponse>> analyzeDocument(
-            @RequestHeader("X-Device-Id") String deviceUuid,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceUuid,
         @RequestParam("file") MultipartFile multipartFile,
         @RequestParam("fileType") FileType fileType) {
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
@@ -56,7 +56,7 @@ public class AIController {
 
     @GetMapping("/history")
     @Operation(summary = "분석 내역 조회", description = "사용자의 최근 문서 분석 내역을 최대 10개까지 조회합니다.")
-    public ResponseEntity<ApiResponse<AnalysisHistoryResponse>> getHistory(@RequestHeader("X-Device-Id") String deviceUuid) {
+    public ResponseEntity<ApiResponse<AnalysisHistoryResponse>> getHistory(@RequestHeader(value = "X-Device-Id", required = false) String deviceUuid) {
         AnalysisHistoryResponse response = documentHistoryService.getHistory(deviceUuid);
         return ResponseEntity.ok(ApiResponse.onSuccess(response));
     }
