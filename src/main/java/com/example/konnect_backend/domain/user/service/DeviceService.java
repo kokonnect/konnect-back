@@ -2,6 +2,7 @@ package com.example.konnect_backend.domain.user.service;
 
 import com.example.konnect_backend.domain.user.entity.Device;
 import com.example.konnect_backend.domain.user.entity.User;
+import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.repository.DeviceRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
@@ -20,15 +21,24 @@ public class DeviceService {
     private final UserRepository userRepository;
 
     @Transactional
-    public void registerDevice(String deviceUuid) {
+    public void registerDevice(String deviceUuid, Language language) {
         if (deviceUuid == null || deviceUuid.isBlank()) {
             throw new GeneralException(ErrorStatus.INVALID_DEVICE);
         }
+
         deviceRepository.findById(deviceUuid)
+                .map(device -> {
+                    // 이미 존재하면 language 업데이트
+                    if ( language != null) {
+                        device.updateLanguage(language);
+                    }
+                    return device;
+                })
                 .orElseGet(() ->
                         deviceRepository.save(
                                 Device.builder()
                                         .deviceUuid(deviceUuid)
+                                        .language(language) // 추가
                                         .build()
                         )
                 );
