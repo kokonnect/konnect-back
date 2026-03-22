@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class MessageComposeResponse {
     
     private String originalMessage;
-    private String translatedMessage;
+    private String generatedMessage;
     private String targetLanguage;
     private Long processingTimeMs;
 }

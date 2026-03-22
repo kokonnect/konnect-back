@@ -6,9 +6,11 @@ import com.example.konnect_backend.domain.message.dto.response.MessageComposeRes
 import com.example.konnect_backend.domain.message.dto.response.MessageHistoryResponse;
 import com.example.konnect_backend.domain.message.entity.UserGeneratedMessage;
 import com.example.konnect_backend.domain.message.repository.UserGeneratedMessageRepository;
+import com.example.konnect_backend.domain.user.entity.Device;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.entity.status.UsageType;
+import com.example.konnect_backend.domain.user.repository.DeviceRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.domain.user.service.UsageFacade;
 import com.example.konnect_backend.global.exception.GeneralException;
@@ -16,10 +18,12 @@ import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jboss.logging.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -39,27 +43,40 @@ public class MessageTranslationService {
     private final UserRepository userRepository;
     private final UserGeneratedMessageRepository userGeneratedMessageRepository;
     private final UsageFacade usageFacade;
+    private final DeviceRepository deviceRepository;
 
-    private static final String MESSAGE_TRANSLATION_PROMPT_TEMPLATE = """
-            다음 메시지를 %s로 번역해주세요.
+    private static final String MESSAGE_GENERATION_PROMPT_TEMPLATE = """
+당신은 외국인 학부모를 대신해 한국 학교 선생님에게 보낼 메시지를 작성하는 도우미입니다.
 
-            원본 메시지:
-            %s
+[상황]
+%s
 
-            번역 지침:
-            - 자연스럽고 정확한 번역을 해주세요
-            - 메시지의 톤과 의도를 유지해주세요
-            - 문맥과 의미를 충분히 고려해주세요
-            - 번역문만 출력하고 다른 설명은 하지 마세요
+[작성 규칙]
+- 메시지는 반드시 한국어로 작성하세요
+- 실제 학부모가 선생님께 보내는 자연스럽고 공손한 메시지로 작성하세요
+- 상황에 대한 간단한 설명 + 양해 표현 + 마무리 인사를 포함하세요
+- 3~5문장 정도로 적절한 길이로 작성하세요
+- 너무 딱딱한 шаблон 문장 대신 자연스럽게 작성하세요
 
-            번역 결과:
-            """;
+[중요 규칙]
+- placeholder는 반드시 아래 형식을 그대로 사용하세요 (절대 변경 금지)
+%s
+- 위 placeholder를 그대로 사용하세요
+- 다른 placeholder를 만들지 마세요
+
+[출력 규칙]
+- 설명 금지
+- 하나의 메시지만 출력
+
+메시지:
+""";
 
     @Transactional
-    public MessageComposeResponse translateMessage(MessageComposeRequest request, String deviceUuid){
+    public MessageComposeResponse generatedMessage(MessageComposeRequest request, String deviceUuid){
         long startTime = System.currentTimeMillis();
 
         try {
+            MDC.put("requestId", UUID.randomUUID().toString());
             usageFacade.validateAndIncrease(UsageType.MESSAGE, deviceUuid);
             // 현재 로그인한 사용자 정보 가져오기 (게스트 사용자 포함)
             Long userId = SecurityUtil.getCurrentUserIdOrNull();
@@ -69,13 +86,13 @@ public class MessageTranslationService {
             }
 
             // 번역 대상 언어 결정 (요청에 지정된 언어 > 사용자 설정 언어 > 기본값 한국어)
-            String targetLanguage = determineTargetLanguage(request, user);
+            String targetLanguage = determineTargetLanguage(request, user, deviceUuid);
             String targetLanguageName = getLanguageDisplayName(targetLanguage);
 
             log.info("번역 대상 언어: {} (사용자: {})", targetLanguage, user != null ? user.getId() : "guest");
 
             // 메시지 번역
-            String translatedMessage = translateText(request.getMessage(), targetLanguageName);
+            String generatedMessage = generateMessage(request.getMessage(), targetLanguageName);
 
             UserGeneratedMessage entity;
 
@@ -84,14 +101,14 @@ public class MessageTranslationService {
                         .user(user)
                         .deviceUuid(null)
                         .inputPrompt(request.getMessage())
-                        .generatedKorean(translatedMessage)
+                        .generatedKorean(generatedMessage)
                         .build();
             } else {
                 entity = UserGeneratedMessage.builder()
                         .user(null)
                         .deviceUuid(deviceUuid)
                         .inputPrompt(request.getMessage())
-                        .generatedKorean(translatedMessage)
+                        .generatedKorean(generatedMessage)
                         .build();
             }
 
@@ -102,7 +119,7 @@ public class MessageTranslationService {
 
             return MessageComposeResponse.builder()
                     .originalMessage(request.getMessage())
-                    .translatedMessage(translatedMessage)
+                    .generatedMessage(generatedMessage)
                     .targetLanguage(targetLanguage)
                     .processingTimeMs(processingTime)
                     .build();
@@ -152,8 +169,23 @@ public class MessageTranslationService {
                 .collect(Collectors.toList());
     }
 
-    private String determineTargetLanguage(MessageComposeRequest request, User user) {
-        // 무조건 한국어로 번역
+    private String determineTargetLanguage(MessageComposeRequest request, User user, String deviceUuid) {
+
+        // user 우선
+        if (user != null && user.getLanguage() != null) {
+            return convertLanguageEnumToCode(user.getLanguage());
+        }
+
+        // device fallback
+        if (deviceUuid != null) {
+            return deviceRepository.findById(deviceUuid)
+                    .map(Device::getLanguage)
+                    .filter(lang -> lang != null)
+                    .map(this::convertLanguageEnumToCode)
+                    .orElse("ko");
+        }
+
+        // 그외
         return "ko";
     }
 
@@ -184,14 +216,32 @@ public class MessageTranslationService {
         };
     }
 
+    private String getPlaceholder(String lang) {
+        return switch (lang) {
+            case "ko" -> "[선생님 이름], [학생 이름], [학부모 이름]";
+            case "en" -> "[Teacher Name], [Child Name], [Parent Name]";
+            case "vi" -> "[Tên giáo viên], [Tên học sinh], [Tên phụ huynh]";
+            case "zh" -> "[老师姓名], [学生姓名], [家长姓名]";
+            case "ja" -> "[先生の名前], [生徒の名前], [保護者の名前]";
+            case "th" -> "[ชื่อครู], [ชื่อนักเรียน], [ชื่อผู้ปกครอง]";
+            case "tl" -> "[Pangalan ng Guro], [Pangalan ng Mag-aaral], [Pangalan ng Magulang]";
+            case "km" -> "[ឈ្មោះគ្រូ], [ឈ្មោះសិស្ស], [ឈ្មោះមាតាបិតា]";
+            default -> "[Teacher Name], [Child Name], [Parent Name]";
+        };
+    }
+
     /**
      * 텍스트 번역 (Gemini Lite 모델 사용)
      */
-    private String translateText(String message, String targetLanguage) {
+    private String generateMessage(String message, String targetLanguage) {
         try {
-            String prompt = String.format(MESSAGE_TRANSLATION_PROMPT_TEMPLATE,
-                    targetLanguage,
-                    message);
+            String placeholder = getPlaceholder(targetLanguage);
+
+            String prompt = String.format(
+                    MESSAGE_GENERATION_PROMPT_TEMPLATE,
+                    message,
+                    placeholder
+            );
 
             // Gemini Lite 모델 사용 (단순 번역)
             String result = geminiService.generateSimpleContent(prompt, 0.3, 2000).response();

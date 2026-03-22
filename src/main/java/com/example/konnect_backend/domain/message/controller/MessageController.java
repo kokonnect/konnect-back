@@ -32,7 +32,7 @@ public class MessageController {
         
         try {
             MessageComposeResponse response =
-                    messageTranslationService.translateMessage(request, deviceUuid);
+                    messageTranslationService.generatedMessage(request, deviceUuid);
             
             return ResponseEntity.ok(ApiResponse.onSuccess(response));
             

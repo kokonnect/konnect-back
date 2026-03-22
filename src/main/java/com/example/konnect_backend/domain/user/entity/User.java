@@ -20,6 +20,7 @@ public class User extends BaseEntity {
     private String email;
 
     private String name;          // 선택
+
     @Enumerated(EnumType.STRING)
     private Language language;    // 선택
 
@@ -52,6 +53,10 @@ public class User extends BaseEntity {
         if (name != null && !name.isBlank()) {
             this.name = name;
         }
+    }
+
+    public void updateLanguage(Language language) {
+        this.language = language;
     }
 
 }

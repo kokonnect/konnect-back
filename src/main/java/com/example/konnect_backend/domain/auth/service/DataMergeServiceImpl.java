@@ -38,6 +38,9 @@ public class DataMergeServiceImpl implements DataMergeService {
         User targetUser = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("user not found"));
 
+        if (device.getLanguage() != null) {
+            targetUser.updateLanguage(device.getLanguage());
+        }
 
         // 무조건 최신 유저로 업데이트
         device.updateUser(targetUser);
