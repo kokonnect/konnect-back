@@ -57,7 +57,7 @@ public class WebSecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**"
                         ).permitAll()
-                        .requestMatchers("/api/auth/**", "/api/schools/**", "/api/device/**", "/api/ai/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/schools/**", "/api/device/**", "/api/ai/**", "/api/message/**", "/api/usage/**").permitAll()
                         .requestMatchers("/api/admin/**").permitAll() // Todo 관리자만 허용해야 함, 테스트 위해 모두 허용
                         .requestMatchers("/api/ws/**", "/ws/**").permitAll()
                         .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
@@ -110,14 +110,8 @@ public class WebSecurityConfig {
                 "http://localhost:5173",
                 "ws://localhost:8080",
                 "http://localhost:3000",
-                "https://konnect-women.site",
-                "https://www.konnect-women.site",
-                "http://konnect-women.site",
-                "http://www.konnect-women.site",
-                "https://www.api.konnect-women.site",
-                "http://www.api.konnect-women.site",
-                "http://api.konnect-women.site",
-                "https://api.konnect-women.site"
+                "https://api.women-konnect.com",
+                "http://api.women-konnect.com"
         );
 
         config.setAllowedOrigins(allowedOrigins);
