@@ -17,7 +17,9 @@ public class UsageController {
     private final UsageFacade usageFacade;
 
     @GetMapping("")
-    public UsageResponse getUsage(@RequestHeader("X-Device-Id") String deviceUuid) {
+    public UsageResponse getUsage(
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceUuid
+    ) {
         return usageFacade.getUsage(deviceUuid);
     }
 }
