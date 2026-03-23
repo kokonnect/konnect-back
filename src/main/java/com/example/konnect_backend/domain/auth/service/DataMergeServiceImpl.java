@@ -1,7 +1,6 @@
 package com.example.konnect_backend.domain.auth.service;
 
 import com.example.konnect_backend.domain.ai.repository.AnalysisHistoryRepository;
-import com.example.konnect_backend.domain.message.entity.UserGeneratedMessage;
 import com.example.konnect_backend.domain.message.repository.UserGeneratedMessageRepository;
 import com.example.konnect_backend.domain.user.entity.Device;
 import com.example.konnect_backend.domain.user.entity.User;
@@ -25,6 +24,9 @@ public class DataMergeServiceImpl implements DataMergeService {
 
     @Override
     public void mergeGuestToUser(String deviceUuid, Long userId) {
+        if (deviceUuid == null || deviceUuid.isBlank()) {
+            return; // or throw GeneralException
+        }
 
         Device device = deviceRepository.findById(deviceUuid)
                 .orElseGet(() ->
@@ -36,7 +38,7 @@ public class DataMergeServiceImpl implements DataMergeService {
                 );
 
         User targetUser = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("user not found"));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
         if (device.getLanguage() != null) {
             targetUser.updateLanguage(device.getLanguage());

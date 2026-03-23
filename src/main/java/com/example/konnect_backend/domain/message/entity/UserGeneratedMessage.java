@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserGeneratedMessage extends BaseEntity {
@@ -19,8 +18,8 @@ public class UserGeneratedMessage extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
     private String inputPrompt;

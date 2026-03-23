@@ -18,9 +18,9 @@ import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jboss.logging.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.MDC;
 
 import java.util.List;
 import java.util.UUID;
@@ -77,7 +77,7 @@ public class MessageTranslationService {
 
         try {
             MDC.put("requestId", UUID.randomUUID().toString());
-            usageFacade.validateAndIncrease(UsageType.MESSAGE, deviceUuid);
+
             // 현재 로그인한 사용자 정보 가져오기 (게스트 사용자 포함)
             Long userId = SecurityUtil.getCurrentUserIdOrNull();
             User user = null;
@@ -85,21 +85,30 @@ public class MessageTranslationService {
                 user = userRepository.findById(userId).orElse(null);
             }
 
+            if (user == null && (deviceUuid == null || deviceUuid.isBlank())) {
+                throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+            }
+
+            usageFacade.validateAndIncrease(UsageType.MESSAGE, deviceUuid);
+
             // 번역 대상 언어 결정 (요청에 지정된 언어 > 사용자 설정 언어 > 기본값 한국어)
             String targetLanguage = determineTargetLanguage(request, user, deviceUuid);
-            String targetLanguageName = getLanguageDisplayName(targetLanguage);
+
+            if (request.getTargetLanguage() != null && !request.getTargetLanguage().isBlank()) {
+                targetLanguage = request.getTargetLanguage();
+            }
 
             log.info("번역 대상 언어: {} (사용자: {})", targetLanguage, user != null ? user.getId() : "guest");
 
             // 메시지 번역
-            String generatedMessage = generateMessage(request.getMessage(), targetLanguageName);
+            String generatedMessage = generateMessage(request.getMessage(), targetLanguage);
 
             UserGeneratedMessage entity;
 
             if (user != null) {
                 entity = UserGeneratedMessage.builder()
                         .user(user)
-                        .deviceUuid(null)
+                        .deviceUuid(deviceUuid)
                         .inputPrompt(request.getMessage())
                         .generatedKorean(generatedMessage)
                         .build();
@@ -129,6 +138,8 @@ public class MessageTranslationService {
         } catch (Exception e) {
             log.error("메시지 번역 중 예상치 못한 오류 발생", e);
             throw new GeneralException(ErrorStatus.TRANSLATION_FAILED);
+        } finally {
+            MDC.remove("key");
         }
     }
 
@@ -154,7 +165,7 @@ public class MessageTranslationService {
             }
 
             messages = userGeneratedMessageRepository
-                    .findByDeviceUuidOrderByCreatedAtDesc(deviceUuid);
+                    .findByDeviceUuidAndUserIsNullOrderByCreatedAtDesc(deviceUuid);
         }
 
 
@@ -199,20 +210,6 @@ public class MessageTranslationService {
             case THAI -> "th";
             case FILIPINO -> "tl";
             case KHMER -> "km";
-        };
-    }
-
-    private String getLanguageDisplayName(String languageCode) {
-        return switch (languageCode.toLowerCase()) {
-            case "ko" -> "한국어";
-            case "en" -> "영어";
-            case "vi" -> "베트남어";
-            case "zh" -> "중국어";
-            case "ja" -> "일본어";
-            case "th" -> "태국어";
-            case "tl" -> "필리핀어";
-            case "km" -> "캄보디아어";
-            default -> "한국어";
         };
     }
 

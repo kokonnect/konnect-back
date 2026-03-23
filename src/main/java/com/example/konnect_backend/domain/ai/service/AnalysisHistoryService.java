@@ -8,6 +8,8 @@ import com.example.konnect_backend.domain.ai.repository.AnalysisHistoryRepositor
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.global.code.status.ErrorStatus;
+import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,10 +44,15 @@ public class AnalysisHistoryService {
 
         AnalysisHistory toSave;
 
+        if (userId == null && (deviceUuid == null || deviceUuid.isBlank())) {
+            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+        }
+
         if (userId != null) {
             toSave = AnalysisHistory.builder()
+                    .requestLogId(requestLogId)
                     .userId(userId)
-                    .deviceUuid(null)
+                    .deviceUuid(deviceUuid)
                     .fileName(file.originalName())
                     .fileType(file.fileType())
                     .extractedText(extractedText.text())
@@ -56,6 +63,7 @@ public class AnalysisHistoryService {
                     .build();
         } else {
             toSave = AnalysisHistory.builder()
+                    .requestLogId(requestLogId)
                     .userId(null)
                     .deviceUuid(deviceUuid)
                     .fileName(file.originalName())
@@ -93,7 +101,7 @@ public class AnalysisHistoryService {
                 log.warn("deviceUuid 없음");
                 return AnalysisHistoryResponse.emptyResponse();
             }
-            pageResponse = historyRepository.findByDeviceUuid(deviceUuid, pageable);
+            pageResponse = historyRepository.findByDeviceUuidAndUserIdIsNull(deviceUuid, pageable);
         }
 
         return AnalysisHistoryResponse.from(pageResponse.getContent());

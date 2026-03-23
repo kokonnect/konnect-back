@@ -1,9 +1,7 @@
 package com.example.konnect_backend.global.security.oauth;
 
 import com.example.konnect_backend.domain.auth.service.DataMergeService;
-import com.example.konnect_backend.domain.user.service.DeviceService;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
