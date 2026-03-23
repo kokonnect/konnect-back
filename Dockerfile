@@ -1,18 +1,15 @@
-FROM eclipse-temurin:17-jre
-
+# build stage
+FROM gradle:8-jdk17 AS build
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    tesseract-ocr-kor \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+COPY build.gradle settings.gradle ./
+COPY gradle gradle
+RUN gradle build -x test || true
 
-COPY build/libs/*.jar app.jar
+COPY . .
+RUN gradle build -x test
 
-EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
-
-ENTRYPOINT ["java","-jar","app.jar"]
+# runtime stage
+FROM eclipse-temurin:17-jdk-jammy
+COPY --from=build /app/build/libs/*.jar app.jar
+ENTRYPOINT ["java","-jar","/app.jar"]
