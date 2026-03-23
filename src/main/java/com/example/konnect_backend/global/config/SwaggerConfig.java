@@ -29,7 +29,7 @@ public class SwaggerConfig {
 
         // 서버 URL 명시 (http 대신 https)
         Server productionServer = new Server()
-                .url("https://api.konnect-women.site")
+                .url("https://api.konnect-women.com")
                 .description("Production Server (HTTPS)");
 
         Server localServer = new Server()
