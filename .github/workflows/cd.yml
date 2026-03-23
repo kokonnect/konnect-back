@@ -16,9 +16,10 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - run: chmod +x gradlew
+#      - run: chmod +x gradlew
+#
+#      - run: ./gradlew clean build -x test
 
-      - run: ./gradlew clean build -x test
 
       - name: Docker build
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_NAME }}:latest .

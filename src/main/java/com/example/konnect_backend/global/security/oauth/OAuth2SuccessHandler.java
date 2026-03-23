@@ -1,8 +1,7 @@
 package com.example.konnect_backend.global.security.oauth;
 
-import com.example.konnect_backend.domain.user.service.DeviceService;
+import com.example.konnect_backend.domain.auth.service.DataMergeService;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,7 @@ import java.io.IOException;
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final DeviceService deviceService;
+    private final DataMergeService dataMergeService;
 
     @Value("${frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -34,7 +33,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         String deviceUuid = request.getHeader("X-Device-Id");
         if (deviceUuid != null && !deviceUuid.isBlank()) {
-            deviceService.connectDevice(userId, deviceUuid);
+            dataMergeService.mergeGuestToUser(deviceUuid, userId);
         }
         // Access Token과 Refresh Token 모두 발급
         String accessToken = jwtTokenProvider.createToken(userId, "USER");

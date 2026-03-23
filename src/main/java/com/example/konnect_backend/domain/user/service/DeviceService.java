@@ -1,13 +1,11 @@
 package com.example.konnect_backend.domain.user.service;
 
 import com.example.konnect_backend.domain.user.entity.Device;
-import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.repository.DeviceRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
-import com.google.cloud.Timestamp;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -57,22 +55,5 @@ public class DeviceService {
                         )
                 );
     }
-
-    @Transactional
-    public void connectDevice(Long userId, String deviceUuid) {
-
-        if (userId == null && (deviceUuid == null || deviceUuid.isBlank())) {
-            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
-        }
-
-        Device device = findOrCreateDevice(deviceUuid);
-
-        User user = userRepository.findById(userId).orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
-
-        if (device.getUser() == null || device.getUser().isGuest()) {
-            device.updateUser(user);
-        }
-    }
-
 
 }
