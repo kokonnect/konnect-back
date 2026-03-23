@@ -10,7 +10,6 @@ import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import com.example.konnect_backend.domain.user.repository.SocialAccountRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
-import com.example.konnect_backend.domain.user.service.DeviceService;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.security.JwtTokenProvider;
@@ -36,7 +35,6 @@ public class NativeAuthService {
     private final SocialAccountRepository socialAccountRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final DataMergeService dataMergeService;
-    private final DeviceService deviceService;
 
     /**
      * 소셜 로그인 처리
@@ -62,10 +60,10 @@ public class NativeAuthService {
             // 기존 회원 - JWT 발급
             User user = existingSocialAccount.get().getUser();
 
-            dataMergeService.mergeGuestToUser(request.getDeviceUuid(), user.getId());
-
-            // device 연결
-            deviceService.connectDevice(user.getId(), request.getDeviceUuid());
+            String deviceUuid = request.getDeviceUuid();
+            if (deviceUuid != null && !deviceUuid.isBlank()) {
+                dataMergeService.mergeGuestToUser(deviceUuid, user.getId());
+            }
 
             String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
@@ -131,9 +129,6 @@ public class NativeAuthService {
         socialAccountRepository.save(socialAccount);
 
         dataMergeService.mergeGuestToUser(request.getDeviceUuid(), user.getId());
-
-        // device 연결
-        deviceService.connectDevice(user.getId(), request.getDeviceUuid());
 
         String accessToken = jwtTokenProvider.createToken(user.getId(), "USER");
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());

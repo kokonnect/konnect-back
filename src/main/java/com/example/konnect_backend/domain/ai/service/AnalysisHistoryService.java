@@ -8,6 +8,8 @@ import com.example.konnect_backend.domain.ai.repository.AnalysisHistoryRepositor
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
+import com.example.konnect_backend.global.code.status.ErrorStatus;
+import com.example.konnect_backend.global.exception.GeneralException;
 import com.example.konnect_backend.global.security.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,25 +38,43 @@ public class AnalysisHistoryService {
     private static final int DEFAULT_HISTORY_LIMIT = 10;
 
     @Transactional
-    public Long saveHistory(Long userId, UploadFile file, TargetLanguage targetLanguage, Long requestLogId,
+    public Long saveHistory(Long userId, String deviceUuid, UploadFile file, TargetLanguage targetLanguage, Long requestLogId,
                             ExtractedText extractedText, String translatedText, String summary,
                             LocalDateTime timestamp) {
-        if (userId == null) {
-            log.info("비로그인 사용자 - DB 저장 건너뜀");
-            return null;
+
+        AnalysisHistory toSave;
+
+        if (userId == null && (deviceUuid == null || deviceUuid.isBlank())) {
+            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
         }
 
-        AnalysisHistory toSave = AnalysisHistory.builder()
-            .requestLogId(requestLogId)
-            .userId(userId)
-            .fileName(file.originalName())
-            .fileType(file.fileType())
-            .extractedText(extractedText.text())
-            .translatedLanguage(targetLanguage.getLanguageCode())
-            .translatedText(translatedText)
-            .summary(summary)
-            .createdAt(timestamp)
-            .build();
+        if (userId != null) {
+            toSave = AnalysisHistory.builder()
+                    .requestLogId(requestLogId)
+                    .userId(userId)
+                    .deviceUuid(deviceUuid)
+                    .fileName(file.originalName())
+                    .fileType(file.fileType())
+                    .extractedText(extractedText.text())
+                    .translatedLanguage(targetLanguage.getLanguageCode())
+                    .translatedText(translatedText)
+                    .summary(summary)
+                    .createdAt(timestamp)
+                    .build();
+        } else {
+            toSave = AnalysisHistory.builder()
+                    .requestLogId(requestLogId)
+                    .userId(null)
+                    .deviceUuid(deviceUuid)
+                    .fileName(file.originalName())
+                    .fileType(file.fileType())
+                    .extractedText(extractedText.text())
+                    .translatedLanguage(targetLanguage.getLanguageCode())
+                    .translatedText(translatedText)
+                    .summary(summary)
+                    .createdAt(timestamp)
+                    .build();
+        }
 
         AnalysisHistory saved = historyRepository.save(toSave);
 
@@ -62,28 +82,28 @@ public class AnalysisHistoryService {
     }
 
     @Transactional(readOnly = true)
-    public AnalysisHistoryResponse getHistory() {
-        return getHistory(DEFAULT_HISTORY_LIMIT);
+    public AnalysisHistoryResponse getHistory(String deviceUuid) {
+        return getHistory(deviceUuid, DEFAULT_HISTORY_LIMIT);
     }
 
     @Transactional(readOnly = true)
-    public AnalysisHistoryResponse getHistory(int limit) {
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        if (userId == null) {
-            log.warn("인증되지 않은 사용자의 내역 조회 요청");
-            return AnalysisHistoryResponse.emptyResponse();
-        }
+    public AnalysisHistoryResponse getHistory(String deviceUuid, int limit) {
 
-        Optional<User> user = userRepository.findById(userId);
-        if (user.isEmpty()) {
-            log.warn("존재하지 않는 사용자: userId={}", userId);
-            return AnalysisHistoryResponse.emptyResponse();
-        }
+        Long userId = SecurityUtil.getCurrentUserIdOrNull();
 
         Pageable pageable = PageRequest.of(0, limit);
+        Page<AnalysisHistory> pageResponse;
 
-        Page<AnalysisHistory> pageResponse = historyRepository.findByUserId(userId, pageable);
-        List<AnalysisHistory> histories = pageResponse.getContent();
-        return AnalysisHistoryResponse.from(histories);
+        if (userId != null) {
+            pageResponse = historyRepository.findByUserId(userId, pageable);
+        } else {
+            if (deviceUuid == null || deviceUuid.isBlank()) {
+                log.warn("deviceUuid 없음");
+                return AnalysisHistoryResponse.emptyResponse();
+            }
+            pageResponse = historyRepository.findByDeviceUuidAndUserIdIsNull(deviceUuid, pageable);
+        }
+
+        return AnalysisHistoryResponse.from(pageResponse.getContent());
     }
 }

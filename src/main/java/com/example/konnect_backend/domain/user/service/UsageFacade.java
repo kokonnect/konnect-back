@@ -29,7 +29,6 @@ public class UsageFacade {
     public void validateAndIncrease(UsageType usageType, String deviceUuid) {
 
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
-
         IdentityType identityType;
         String identityKey;
         boolean isGuest;
@@ -43,7 +42,6 @@ public class UsageFacade {
                 throw new GeneralException(ErrorStatus.INVALID_DEVICE);
             }
             Device device = deviceService.findOrCreateDevice(deviceUuid);
-
             identityType = IdentityType.DEVICE;
             identityKey = device.getDeviceUuid();
             isGuest = true;
