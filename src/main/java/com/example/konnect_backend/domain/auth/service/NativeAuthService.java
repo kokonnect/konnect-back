@@ -47,7 +47,7 @@ public class NativeAuthService {
         Provider provider = request.getProvider();
 
         // 1. 소셜 플랫폼에서 사용자 정보 조회
-        SocialUserInfo socialUserInfo = nativeOAuthService.getUserInfo(request.getAccessToken(), provider);
+        SocialUserInfo socialUserInfo = nativeOAuthService.getUserInfo(request);
         String providerUserId = socialUserInfo.getProviderUserId();
 
         log.info("소셜 로그인 시도: provider={}, providerUserId={}", provider, providerUserId);
@@ -82,7 +82,7 @@ public class NativeAuthService {
 
         // 3. 신규 사용자 - 회원가입 필요
         log.info("신규 사용자 - 회원가입 필요: providerUserId={}", providerUserId);
-        return OAuthLoginResponse.signUpRequired(providerUserId, provider);
+        return OAuthLoginResponse.signUpRequired(providerUserId, provider,socialUserInfo.getEmail());
     }
 
     /**

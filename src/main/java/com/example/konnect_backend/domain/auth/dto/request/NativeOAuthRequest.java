@@ -24,4 +24,7 @@ public class NativeOAuthRequest {
 
     @Schema(description = "디바이스 uuid")
     private String deviceUuid;
+
+    // NativeOAuthRequest.java에 추가
+    private String idToken; // Apple 전용
 }
