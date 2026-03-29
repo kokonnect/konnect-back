@@ -2,7 +2,6 @@ package com.example.konnect_backend.domain.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 

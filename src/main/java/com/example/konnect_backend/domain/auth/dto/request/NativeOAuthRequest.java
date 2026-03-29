@@ -14,7 +14,6 @@ import lombok.*;
 @Schema(description = "네이티브 앱 OAuth 로그인 요청 DTO")
 public class NativeOAuthRequest {
 
-    @NotBlank(message = "소셜 액세스 토큰은 필수입니다")
     @Schema(description = "소셜 플랫폼에서 발급받은 액세스 토큰", example = "ya29.a0AfH6SMB...")
     private String accessToken;
 

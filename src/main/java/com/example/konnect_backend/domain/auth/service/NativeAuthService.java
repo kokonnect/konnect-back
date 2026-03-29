@@ -46,6 +46,16 @@ public class NativeAuthService {
     public OAuthLoginResponse socialLogin(NativeOAuthRequest request) {
         Provider provider = request.getProvider();
 
+        if (provider == Provider.APPLE) {
+            if (request.getIdToken() == null || request.getIdToken().isBlank()) {
+                throw new GeneralException(ErrorStatus.OAUTH_TOKEN_INVALID);
+            }
+        } else {
+            if (request.getAccessToken() == null || request.getAccessToken().isBlank()) {
+                throw new GeneralException(ErrorStatus.OAUTH_TOKEN_INVALID);
+            }
+        }
+
         // 1. 소셜 플랫폼에서 사용자 정보 조회
         SocialUserInfo socialUserInfo = nativeOAuthService.getUserInfo(request);
         String providerUserId = socialUserInfo.getProviderUserId();

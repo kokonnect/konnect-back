@@ -37,6 +37,8 @@ public class AppleOAuthService {
                     .nickname("AppleUser")
                     .build();
 
+        } catch (GeneralException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Apple 로그인 실패", e);
             throw new GeneralException(ErrorStatus.OAUTH_USER_INFO_FAILED);
