@@ -35,6 +35,9 @@ public class OAuthLoginResponse {
     @Schema(description = "사용자 역할")
     private String role;
 
+    @Schema(description = "소셜 이메일 (회원가입 시 자동 입력)")
+    private String email;
+
 
     /**
      * 기존 회원 로그인 성공 응답
@@ -53,11 +56,16 @@ public class OAuthLoginResponse {
     /**
      * 신규 사용자 - 회원가입 필요 응답
      */
-    public static OAuthLoginResponse signUpRequired(String providerUserId, Provider provider) {
+    public static OAuthLoginResponse signUpRequired(
+            String providerUserId,
+            Provider provider,
+            String email
+    ) {
         return OAuthLoginResponse.builder()
                 .member(false)
                 .providerUserId(providerUserId)
                 .provider(provider)
+                .email(email)
                 .build();
     }
 }

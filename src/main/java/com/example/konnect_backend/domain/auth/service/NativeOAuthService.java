@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.auth.service;
 
+import com.example.konnect_backend.domain.auth.dto.request.NativeOAuthRequest;
 import com.example.konnect_backend.domain.auth.dto.response.SocialUserInfo;
 import com.example.konnect_backend.domain.user.entity.status.Provider;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class NativeOAuthService {
 
     private final RestTemplate restTemplate;
+    private final AppleOAuthService appleOAuthService;
 
     private static final String KAKAO_USER_INFO_URL = "https://kapi.kakao.com/v2/user/me";
     private static final String GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
@@ -30,10 +32,11 @@ public class NativeOAuthService {
     /**
      * 소셜 액세스 토큰으로 사용자 정보 조회
      */
-    public SocialUserInfo getUserInfo(String accessToken, Provider provider) {
-        return switch (provider) {
-            case KAKAO -> getKakaoUserInfo(accessToken);
-            case GOOGLE -> getGoogleUserInfo(accessToken);
+    public SocialUserInfo getUserInfo(NativeOAuthRequest request) {
+        return switch (request.getProvider()) {
+            case KAKAO -> getKakaoUserInfo(request.getAccessToken());
+            case GOOGLE -> getGoogleUserInfo(request.getAccessToken());
+            case APPLE -> appleOAuthService.getUserInfo(request.getIdToken()); // idToken
             default -> throw new GeneralException(ErrorStatus.UNSUPPORTED_OAUTH_PROVIDER);
         };
     }
