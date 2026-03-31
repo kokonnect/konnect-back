@@ -13,6 +13,7 @@ import com.example.konnect_backend.domain.ai.type.PromptStatus;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/ai")
 @RequiredArgsConstructor
+@Hidden
 @Tag(name = "프롬프트 관리")
 public class PromptManagementController {
 
