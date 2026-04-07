@@ -97,12 +97,11 @@ public class PromptManagementController {
         // 원래는 서비스에 있어야 하나 바뀌지 않고 재사용할 일 없는 로직이므로 편의 상 컨트롤러에 작성
         PipelineContext context = PipelineContext.builder().targetLanguage(TargetLanguage.KOREAN)
             .requestId(UUID.randomUUID()) // id는 상관없으나 혹시 모를 null 문제 방지
-            .filename(file.originalName())
-            .fileType(file.fileType())
+            .file(file)
             .completedStage(PipelineContext.PipelineStage.NONE)
             .processingLogs(new ArrayList<>()).build();
 
-        TextExtractionResult result = textExtractorFacade.extract(file, context);
+        TextExtractionResult result = textExtractorFacade.extract(context);
 
         return ResponseEntity.ok(result.getText());
     }

@@ -22,7 +22,10 @@ public class TextExtractorFacade {
 
     private final List<TextExtractor> extractors;
 
-    public TextExtractionResult extract(UploadFile file, PipelineContext context) {
+    public TextExtractionResult extract(PipelineContext context) {
+        UploadFile file = context.getFile();
+        if (file == null) throw new IllegalStateException("Context의 file이 null일 수 없습니다.");
+
         for (TextExtractor extractor : extractors) {
             if (extractor.supports(file.fileType())) {
                 log.debug("텍스트 추출 시작: {}", file.fileType());

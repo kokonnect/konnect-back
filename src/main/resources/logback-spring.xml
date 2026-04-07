@@ -26,8 +26,8 @@
     <!-- Hibernate SQL 로그의 루트 로거로 전파 방지 -->
     <logger name="org.hibernate.SQL" level="WARN" additivity="false" />
 
-    <!-- DocumentAnalysisPipeline 내 JSON 로그 전용 로거 -->
-    <logger name="com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline.json" level="INFO" additivity="false">
+    <!-- 분석 결과 JSON 로거 -->
+    <logger name="com.example.konnect_backend.domain.ai.service.log.AnalysisLogService.json" level="INFO" additivity="false">
         <appender-ref ref="JSON_CONSOLE"/>
     </logger>
 

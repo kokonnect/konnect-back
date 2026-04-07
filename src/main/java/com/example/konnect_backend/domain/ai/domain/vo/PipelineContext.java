@@ -42,8 +42,7 @@ public class PipelineContext {
     private String summary;
 
     // 사용자 요청값
-    private String filename;
-    private FileType fileType;
+    private UploadFile file;
     private TargetLanguage targetLanguage;
 
     // 요청의 토큰 사용량, 비동기 호출로 분리를 염두하여 AtomicInteger 사용
