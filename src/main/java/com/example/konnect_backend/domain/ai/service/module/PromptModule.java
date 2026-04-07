@@ -1,8 +1,8 @@
-package com.example.konnect_backend.domain.ai.service.pipeline.module;
+package com.example.konnect_backend.domain.ai.service.module;
 
-import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
-import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
-import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
+import com.example.konnect_backend.domain.ai.domain.vo.TokenUsage;
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 
 import java.util.Map;
 

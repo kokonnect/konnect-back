@@ -1,12 +1,11 @@
-package com.example.konnect_backend.domain.ai.service;
+package com.example.konnect_backend.domain.ai.service.history;
 
 import com.example.konnect_backend.domain.ai.dto.response.AnalysisHistoryResponse;
-import com.example.konnect_backend.domain.ai.entity.log.AnalysisHistory;
-import com.example.konnect_backend.domain.ai.model.vo.ExtractedText;
-import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
+import com.example.konnect_backend.domain.ai.domain.entity.log.AnalysisHistory;
+import com.example.konnect_backend.domain.ai.domain.vo.ExtractedText;
+import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.repository.AnalysisHistoryRepository;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
-import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
@@ -20,8 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * 문서 분석/번역 내역 조회 서비스

@@ -3,7 +3,7 @@ package com.example.konnect_backend.domain.ai.infra;
 import com.example.konnect_backend.domain.ai.config.GeminiConfig;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
-import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
+import com.example.konnect_backend.domain.ai.domain.vo.TokenUsage;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

@@ -3,9 +3,9 @@ package com.example.konnect_backend.domain.ai.controller;
 import com.example.konnect_backend.domain.ai.dto.request.CreatePromptRequest;
 import com.example.konnect_backend.domain.ai.dto.request.RunPromptRequest;
 import com.example.konnect_backend.domain.ai.dto.response.*;
-import com.example.konnect_backend.domain.ai.model.vo.TextExtractionResult;
-import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.domain.vo.TextExtractionResult;
+import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.service.prompt.management.PromptManagementService;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.FileType;
@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.UUID;
 
 @RestController

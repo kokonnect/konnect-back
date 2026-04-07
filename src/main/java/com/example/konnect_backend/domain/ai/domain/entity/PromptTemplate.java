@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.entity;
+package com.example.konnect_backend.domain.ai.domain.entity;
 
 import com.example.konnect_backend.domain.ai.type.PromptStatus;
 import com.example.konnect_backend.global.common.BaseEntity;

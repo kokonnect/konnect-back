@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.model.vo;
+package com.example.konnect_backend.domain.ai.domain.vo;
 
 import com.example.konnect_backend.domain.ai.type.FileType;
 

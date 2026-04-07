@@ -1,9 +1,8 @@
-package com.example.konnect_backend.domain.ai.service.pipeline;
+package com.example.konnect_backend.domain.ai.domain.vo;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
-import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.type.DocumentType;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
@@ -15,7 +14,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Data
 @Builder

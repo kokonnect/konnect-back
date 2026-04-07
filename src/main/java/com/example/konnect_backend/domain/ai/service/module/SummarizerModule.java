@@ -1,11 +1,11 @@
-package com.example.konnect_backend.domain.ai.service.pipeline.module;
+package com.example.konnect_backend.domain.ai.service.module;
 
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
-import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
-import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
-import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.domain.vo.TokenUsage;
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.service.prompt.PromptTemplateResolver;
 import com.example.konnect_backend.domain.ai.util.PromptUtils;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
@@ -17,26 +17,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 쉬운 한국어 변환 모듈 (Gemini API 사용)
+ * 요약 모듈 (Gemini API 사용)
  * <p>
  * ## 모델 선택: gemini-2.0-flash-lite
- * - 이유: 단순한 텍스트 변환 작업
- * - 어려운 한국어 → 쉬운 한국어 재작성
+ * - 이유: 요약은 단순한 텍스트 처리 작업
+ * - 핵심 내용 추출 및 간략화
  * - RPD: 1,000회/일로 여유로움
  * - 빠른 응답 속도, 비용 효율적
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class KoreanSimplifierModule implements PromptModule {
+public class SummarizerModule implements PromptModule {
 
     private final GeminiService geminiService;
     private final PromptTemplateResolver resolver;
 
-    // Lite 모델 사용 (단순 텍스트 변환)
+    // Lite 모델 사용 (단순 요약)
     public static final String MODEL_NAME = "gemini-2.0-flash-lite";
     public static final double TEMPERATURE = 0.3;
-    public static final int MAX_TOKENS = 4000;
+    public static final int MAX_TOKENS = 500;
 
     @Override
     public TokenUsage process(PromptTemplate promptTemplate, PipelineContext context) {
@@ -44,42 +44,48 @@ public class KoreanSimplifierModule implements PromptModule {
         String prompt = resolver.resolve(promptTemplate, vars);
 
         try {
-            log.info("쉬운 한국어 재작성 시작 (Gemini Lite 모델)");
+            log.info("요약 생성 시작 (Gemini Lite 모델): {}", context.getTargetLanguage().getDisplayName());
+
             long startTime = System.currentTimeMillis();
 
             // Gemini Lite 모델 사용 (preferPrimary = false)
             GeminiCallResult callResult = geminiService.generateSimpleContent(prompt, TEMPERATURE,
                 MAX_TOKENS);
-            String simplifiedText = callResult.response();
+            String summary = callResult.response();
 
-            if (simplifiedText == null || simplifiedText.isBlank()) {
+            if (summary == null || summary.isBlank()) {
                 throw new DocumentAnalysisException(ErrorStatus.DOCUMENT_ANALYSIS_FAILED);
             }
 
-            context.addLog("쉬운 한국어 재작성 완료: " + simplifiedText.length() + "자");
-            context.setSimplifiedKorean(simplifiedText.trim());
-            context.setCompletedStage(PipelineContext.PipelineStage.SIMPLIFIED);
+            context.addLog("요약 생성 완료: " + summary.length() + "자");
+            context.setSummary(summary);
+            context.setCompletedStage(PipelineContext.PipelineStage.SUMMARIZED);
 
-            log.info("쉬운 한국어 재작성 소요시간 {} ms", System.currentTimeMillis() - startTime);
-
+            log.info("요약 소요시간 {} ms", System.currentTimeMillis() - startTime);
             return callResult.tokenUsage();
         } catch (DocumentAnalysisException e) {
             throw e;
         } catch (Exception e) {
-            log.error("쉬운 한국어 재작성 실패", e);
+            log.error("요약 생성 실패", e);
             throw new DocumentAnalysisException(ErrorStatus.DOCUMENT_ANALYSIS_FAILED);
         }
     }
 
-    public Map<String, String> getVars(PipelineContext context) {
-        Map<String, String> vars = new HashMap<>();
-        vars.put("text", PromptUtils.truncateText(context.getExtractedText(), 4000));
-
-        return vars;
-    }
-
     @Override
     public String getModuleName() {
-        return "SIMPLIFICATION";
+        return "SUMMARIZATION";
+    }
+
+    public Map<String, String> getVars(PipelineContext context) {
+        String targetLanguage = context.getTargetLanguage() != null
+            ? context.getTargetLanguage().getDisplayName()
+            : "한국어";
+        String simplifiedText = context.getSimplifiedKorean();
+
+        Map<String, String> vars = new HashMap<>();
+        vars.put("target_language", targetLanguage);
+        vars.put("text", PromptUtils.truncateText(simplifiedText, 6000));
+
+        return vars;
     }
 }

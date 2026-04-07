@@ -1,7 +1,7 @@
 package com.example.konnect_backend.domain.ai.dto.response;
 
 import com.example.konnect_backend.domain.ai.dto.internal.PromptTemplateWithModelName;
-import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.type.PromptStatus;
 
 import java.time.LocalDateTime;

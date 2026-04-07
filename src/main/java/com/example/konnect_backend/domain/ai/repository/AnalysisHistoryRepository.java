@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.ai.repository;
 
-import com.example.konnect_backend.domain.ai.entity.log.AnalysisHistory;
+import com.example.konnect_backend.domain.ai.domain.entity.log.AnalysisHistory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

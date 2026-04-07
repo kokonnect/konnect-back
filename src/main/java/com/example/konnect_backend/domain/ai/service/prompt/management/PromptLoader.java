@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.ai.service.prompt.management;
 
-import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.repository.PromptTemplateRepository;
 import com.example.konnect_backend.domain.ai.type.PromptStatus;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
