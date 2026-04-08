@@ -54,6 +54,7 @@ public class GeminiLogService {
         // 프롬프트 템플릿 정보 및 입력 변수와 모델 응답 로깅
         log.info("Gemini API 호출 완료",
             kv("metadata id", saved.getId()),
+            kv("request id", requestId),
             kv("model response", result == null ? null : result.response()),
             kv("module name", moduleName),
             kv("prompt version", promptVersion),
