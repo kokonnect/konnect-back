@@ -1,9 +1,9 @@
 package com.example.konnect_backend.domain.ai.infra;
 
 import com.example.konnect_backend.domain.ai.config.GeminiConfig;
+import com.example.konnect_backend.domain.ai.domain.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
-import com.example.konnect_backend.domain.ai.domain.vo.TokenUsage;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +12,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +41,9 @@ public class GeminiService {
     private final GeminiRateLimitService rateLimitService;
     private final RestTemplate geminiRestTemplate;
     private final ObjectMapper objectMapper;
+
+    private final DiscordWebhookService discordService;
+    private final LlmHealthTracker tracker = new LlmHealthTracker(5, 4, 3);
 
     /**
      * 텍스트 생성 (모델 선호도 지정)
@@ -101,6 +105,8 @@ public class GeminiService {
      */
     private GeminiCallResult callGeminiApi(String model, String prompt, ImageData imageData,
                                            double temperature, int maxTokens) {
+        boolean success = false;
+
         String url = String.format("%s/models/%s:generateContent?key=%s",
             config.getApi().getBaseUrl(),
             model,
@@ -149,13 +155,23 @@ public class GeminiService {
 
             log.debug("Gemini API 응답 완료: model={}, responseLength={}", model,
                 result.response().length());
+            success = true;
 
             return result;
-        } catch (DocumentAnalysisException e) {
-            throw e;
         } catch (Exception e) {
             log.error("Gemini API 호출 실패: model={}, error={}", model, e.getMessage(), e);
             throw new DocumentAnalysisException(ErrorStatus.AI_SERVICE_UNAVAILABLE);
+        } finally {
+            LlmHealthTracker.StateChange change = tracker.recordAndCheck(success);
+
+            // 이벤트로 분리하는 것도 가능
+            if (change == LlmHealthTracker.StateChange.DOWN) {
+                log.error("LLM 장애 발생 확인 - 시각: {}", OffsetDateTime.now());
+                discordService.notifyStateChange(true);
+            } else if (change == LlmHealthTracker.StateChange.UP) {
+                log.info("LLM 장애 복구 확인 - 시각: {}", OffsetDateTime.now());
+                discordService.notifyStateChange(false);
+            }
         }
     }
 
