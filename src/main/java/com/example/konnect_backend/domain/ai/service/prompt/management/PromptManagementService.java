@@ -60,6 +60,7 @@ public class PromptManagementService {
         return new ModelListResponse(responses);
     }
 
+    // 동시성 문제는 DB unique 인덱스로 방지
     @Transactional
     public void activate(Long promptId) {
         PromptTemplate toActivate = promptRepository.findById(promptId)
@@ -67,7 +68,7 @@ public class PromptManagementService {
 
         List<PromptTemplate> activePrompts = promptRepository.findByModuleNameAndStatus(
             toActivate.getModuleName(), PromptStatus.ACTIVE);
-        if (activePrompts.size() > 1 || activePrompts.isEmpty()) {
+        if (activePrompts.size() != 1) {
             throw new IllegalStateException("활성화된 프롬프트가 1개가 아닙니다.");
         }
         PromptTemplate previousActive = activePrompts.get(0);
@@ -96,6 +97,7 @@ public class PromptManagementService {
             .orElseThrow(() -> new GeneralException(ErrorStatus.INVALID_AI_MODEL));
         PromptTemplate maxVersion = promptRepository.getMaxVersionOfModule(moduleName);
 
+        // (module_name, version) unique 제약으로 동시성 문제 없음
         PromptTemplate newPrompt = new PromptTemplate(moduleName, maxVersion.getVersion() + 1,
             template, maxTokens,
             aiModel.getId());
