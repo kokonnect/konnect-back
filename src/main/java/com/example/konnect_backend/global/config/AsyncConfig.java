@@ -16,9 +16,9 @@ public class AsyncConfig {
     @Bean
     public ThreadPoolTaskExecutor promptExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(100);
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(30);
+        executor.setQueueCapacity(1);
         executor.setTaskDecorator(new MdcTaskDecorator());
         executor.setThreadNamePrefix("prompt-");
         executor.initialize();

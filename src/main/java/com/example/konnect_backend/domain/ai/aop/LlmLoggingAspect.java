@@ -63,7 +63,7 @@ public class LlmLoggingAspect {
         try {
             GeminiCallResult callResult = (GeminiCallResult) joinPoint.proceed();
             long elapsed = System.currentTimeMillis() - start;
-            // 비동기 호출, 트랜잭션 분리
+            // 트랜잭션 분리
             logService.saveLog(requestId, callResult, promptContext, (int) elapsed);
             return callResult;
         } catch (Exception e) {
