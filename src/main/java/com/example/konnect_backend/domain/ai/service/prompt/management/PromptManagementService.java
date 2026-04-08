@@ -109,7 +109,7 @@ public class PromptManagementService {
         Set<String> requiredKeys = slots.stream()
             .map(PromptSlot::getSlotKey)
             .collect(Collectors.toSet());
-        if (!slotKeysInTemplate.containsAll(requiredKeys)) {
+        if (!slotKeysInTemplate.equals(requiredKeys)) {
             throw new GeneralException(ErrorStatus.INVALID_PROMPT_TEMPLATE);
         }
 
