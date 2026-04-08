@@ -10,11 +10,11 @@
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <fieldNames>
+                <includeMdc>false</includeMdc>
                 <logger>[ignore]</logger>
                 <version>[ignore]</version>
                 <timestamp>[ignore]</timestamp>
                 <levelValue>[ignore]</levelValue>
-                <mdc>[ignore]</mdc>
             </fieldNames>
         </encoder>
     </appender>
