@@ -43,7 +43,7 @@ public class GeminiService {
     private final ObjectMapper objectMapper;
 
     private final DiscordWebhookService discordService;
-    private final LlmHealthTracker tracker = new LlmHealthTracker(5, 4, 3);
+    private final LlmHealthTracker tracker;
 
     /**
      * 텍스트 생성 (모델 선호도 지정)

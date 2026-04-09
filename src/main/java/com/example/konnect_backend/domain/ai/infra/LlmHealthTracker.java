@@ -1,8 +1,12 @@
 package com.example.konnect_backend.domain.ai.infra;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+@Component
 public class LlmHealthTracker {
 
     public enum StateChange {
@@ -23,12 +27,15 @@ public class LlmHealthTracker {
 
     private HealthState currentState = HealthState.HEALTHY;
 
-    public LlmHealthTracker(int windowSize, int recoveryThreshold, int failureThreshold) {
+    public LlmHealthTracker(@Value("${llmtracker.window-size:5}") int windowSize,
+                            @Value("${llmtracker.recovery-threshold:4}") int recoveryThreshold,
+                            @Value("${llmtracker.failure-threshold:3}") int failureThreshold) {
         this.windowSize = windowSize;
         this.recoveryThreshold = recoveryThreshold;
         this.failureThreshold = failureThreshold;
     }
 
+    // 병목이 될 가능성이 있다. 성능 저하 시 락 방식 개선 필요.
     public synchronized StateChange recordAndCheck(boolean success) {
         updateWindow(success);
 
