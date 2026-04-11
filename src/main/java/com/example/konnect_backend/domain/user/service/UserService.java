@@ -6,6 +6,7 @@ import com.example.konnect_backend.domain.user.dto.ChildUpdateDto;
 import com.example.konnect_backend.domain.user.dto.UserInfoDto;
 import com.example.konnect_backend.domain.user.entity.Child;
 import com.example.konnect_backend.domain.user.entity.User;
+import com.example.konnect_backend.domain.user.entity.status.Language;
 import com.example.konnect_backend.domain.user.repository.ChildRepository;
 import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
@@ -126,5 +127,21 @@ public class UserService {
                 .name(user.getName())
                 .language(user.getLanguage())
                 .build();
+    }
+
+    @Transactional
+    public void updateLanguage(Long userId, Language language) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        user.updateLanguage(language);
+    }
+
+    @Transactional(readOnly = true)
+    public Language getLanguage(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
+
+        return user.getLanguage();
     }
 }
