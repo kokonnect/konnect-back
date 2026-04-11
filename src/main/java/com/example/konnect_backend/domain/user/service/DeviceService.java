@@ -7,9 +7,10 @@ import com.example.konnect_backend.domain.user.repository.UserRepository;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -20,14 +21,11 @@ public class DeviceService {
 
     @Transactional
     public void registerDevice(String deviceUuid, Language language) {
-        if (deviceUuid == null || deviceUuid.isBlank()) {
-            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
-        }
+        validateDeviceUuid(deviceUuid);
 
         deviceRepository.findById(deviceUuid)
                 .map(device -> {
-                    // 이미 존재하면 language 업데이트
-                    if ( language != null) {
+                    if (language != null) {
                         device.updateLanguage(language);
                     }
                     return device;
@@ -36,24 +34,50 @@ public class DeviceService {
                         deviceRepository.save(
                                 Device.builder()
                                         .deviceUuid(deviceUuid)
-                                        .language(language) // 추가
+                                        .language(language)
+                                        .createdAt(LocalDateTime.now())
+                                        .lastUsedAt(LocalDateTime.now())
                                         .build()
                         )
                 );
     }
 
-
     @Transactional
     public Device findOrCreateDevice(String deviceUuid) {
+        validateDeviceUuid(deviceUuid);
 
         return deviceRepository.findById(deviceUuid)
                 .orElseGet(() ->
                         deviceRepository.save(
                                 Device.builder()
                                         .deviceUuid(deviceUuid)
+                                        .createdAt(LocalDateTime.now())
+                                        .lastUsedAt(LocalDateTime.now())
                                         .build()
                         )
                 );
     }
 
+    @Transactional
+    public void updateLanguage(String deviceUuid, Language language) {
+        validateDeviceUuid(deviceUuid);
+
+        Device device = findOrCreateDevice(deviceUuid);
+        device.updateLanguage(language);
+    }
+
+    @Transactional(readOnly = true)
+    public Language getLanguage(String deviceUuid) {
+        validateDeviceUuid(deviceUuid);
+
+        return deviceRepository.findById(deviceUuid)
+                .map(Device::getLanguage)
+                .orElse(null);
+    }
+
+    private void validateDeviceUuid(String deviceUuid) {
+        if (deviceUuid == null || deviceUuid.isBlank()) {
+            throw new GeneralException(ErrorStatus.INVALID_DEVICE);
+        }
+    }
 }

@@ -57,7 +57,7 @@ public class WebSecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**"
                         ).permitAll()
-                        .requestMatchers("/api/auth/**", "/api/schools/**", "/api/device/**", "/api/ai/**", "/api/usage/**", "/api/message/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/schools/**", "/api/device/**", "/api/ai/**", "/api/usage/**", "/api/message/**", "/api/users/language").permitAll()
                         .requestMatchers("/api/admin/**").denyAll() // Todo 관리자만 허용 필요
                         .requestMatchers("/api/ws/**", "/ws/**").permitAll()
                         .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
