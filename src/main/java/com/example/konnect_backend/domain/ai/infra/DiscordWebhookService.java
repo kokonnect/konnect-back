@@ -18,16 +18,14 @@ public class DiscordWebhookService {
     private final String DISCORD_WEBHOOK_URL;
 
     public DiscordWebhookService(RestTemplate restTemplate,
-                                 @Value("${discord.webhook-url}") String discordWebhookUrl) {
+                                 @Value("${discord.webhook-url:#{null}}") String discordWebhookUrl) {
         this.restTemplate = restTemplate;
         this.DISCORD_WEBHOOK_URL = discordWebhookUrl;
     }
 
-
     public void notifyStateChange(boolean isLlmDown) {
-
-        if (!StringUtils.hasText(DISCORD_WEBHOOK_URL)) {
-            throw new IllegalStateException("Property 'demo.discord.webhook-url' is empty.");
+        if(DISCORD_WEBHOOK_URL == null) {
+            return;
         }
 
         String status = isLlmDown ? "🔴 DOWN" : "🟢 UP";
