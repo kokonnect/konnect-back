@@ -40,11 +40,12 @@ public class DataMergeServiceImpl implements DataMergeService {
         User targetUser = userRepository.findById(userId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.USER_NOT_FOUND));
 
-        if (device.getLanguage() != null) {
+        // 게스트에서 선택한 언어를 최초 1회만 회원에게 승계
+        if (targetUser.getLanguage() == null && device.getLanguage() != null) {
             targetUser.updateLanguage(device.getLanguage());
         }
 
-        // 무조건 최신 유저로 업데이트
+        // 현재 디바이스는 최신 로그인 유저에 연결
         device.updateUser(targetUser);
 
         // 데이터 이전
