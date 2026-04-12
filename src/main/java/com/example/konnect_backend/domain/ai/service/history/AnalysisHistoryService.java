@@ -1,9 +1,9 @@
 package com.example.konnect_backend.domain.ai.service.history;
 
-import com.example.konnect_backend.domain.ai.dto.response.AnalysisHistoryResponse;
 import com.example.konnect_backend.domain.ai.domain.entity.log.AnalysisHistory;
 import com.example.konnect_backend.domain.ai.domain.vo.ExtractedText;
 import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
+import com.example.konnect_backend.domain.ai.dto.response.AnalysisHistoryResponse;
 import com.example.konnect_backend.domain.ai.repository.AnalysisHistoryRepository;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.user.repository.UserRepository;

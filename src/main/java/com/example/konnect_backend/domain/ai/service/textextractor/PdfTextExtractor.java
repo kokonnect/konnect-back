@@ -1,8 +1,8 @@
 package com.example.konnect_backend.domain.ai.service.textextractor;
 
-import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
 import com.example.konnect_backend.domain.ai.domain.vo.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
+import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
 import com.example.konnect_backend.domain.ai.service.textextractor.ocr.OcrService;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.code.status.ErrorStatus;

@@ -1,10 +1,10 @@
 package com.example.konnect_backend.domain.ai.service.textextractor;
 
-import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
-import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.domain.vo.TextExtractionResult;
 import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
+import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
+import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

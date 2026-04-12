@@ -1,13 +1,13 @@
 package com.example.konnect_backend.domain.ai.service.prompt.management;
 
+import com.example.konnect_backend.domain.ai.domain.entity.AiModel;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptSlot;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.dto.internal.PromptSummary;
 import com.example.konnect_backend.domain.ai.dto.internal.PromptTemplateWithModelName;
 import com.example.konnect_backend.domain.ai.dto.request.RunPromptRequest;
 import com.example.konnect_backend.domain.ai.dto.response.*;
-import com.example.konnect_backend.domain.ai.domain.entity.AiModel;
-import com.example.konnect_backend.domain.ai.domain.entity.PromptSlot;
-import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.ai.repository.AiModelRepository;
 import com.example.konnect_backend.domain.ai.repository.PromptTemplateRepository;

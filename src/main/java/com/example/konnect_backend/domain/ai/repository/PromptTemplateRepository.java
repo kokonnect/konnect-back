@@ -1,8 +1,8 @@
 package com.example.konnect_backend.domain.ai.repository;
 
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.dto.internal.PromptSummary;
 import com.example.konnect_backend.domain.ai.dto.internal.PromptTemplateWithModelName;
-import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.type.PromptStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

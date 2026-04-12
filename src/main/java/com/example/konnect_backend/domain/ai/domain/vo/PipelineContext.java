@@ -4,7 +4,6 @@ import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
 import com.example.konnect_backend.domain.ai.type.DocumentType;
-import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +11,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Data
@@ -58,7 +59,7 @@ public class PipelineContext {
     @Builder.Default
     private List<String> processingLogs = new ArrayList<>();
 
-    public void addLog(String log) {
+    public synchronized void addLog(String log) {
         if (processingLogs == null) {
             processingLogs = new ArrayList<>();
         }

@@ -24,7 +24,7 @@ public class DiscordWebhookService {
     }
 
     public void notifyStateChange(boolean isLlmDown) {
-        if(DISCORD_WEBHOOK_URL == null) {
+        if(StringUtils.hasText(DISCORD_WEBHOOK_URL)) {
             return;
         }
 

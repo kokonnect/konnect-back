@@ -9,8 +9,8 @@
     <!-- JSON 콘솔 로그 -->
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdc>false</includeMdc>
             <fieldNames>
-                <includeMdc>false</includeMdc>
                 <logger>[ignore]</logger>
                 <version>[ignore]</version>
                 <timestamp>[ignore]</timestamp>

@@ -1,8 +1,8 @@
 package com.example.konnect_backend.domain.ai.service.log;
 
 import com.example.konnect_backend.domain.ai.aop.PromptContext;
-import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.domain.entity.log.LlmCallMetadata;
+import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
 import com.example.konnect_backend.domain.ai.repository.LlmCallMetadataRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

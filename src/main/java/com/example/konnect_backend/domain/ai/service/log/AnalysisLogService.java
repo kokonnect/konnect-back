@@ -22,7 +22,7 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 public class AnalysisLogService {
 
     private static final Logger jsonLogger = LoggerFactory.getLogger(
-        "com.example.konnect_backend.domain.ai.service.log.json");
+        "com.example.konnect_backend.domain.ai.service.log.AnalysisLogService.json");
 
     private final AnalysisRequestLogRepository requestLogRepository;
 

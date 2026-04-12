@@ -1,16 +1,13 @@
 package com.example.konnect_backend.domain.ai.service.pipeline;
 
-import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
-import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
-import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
-import com.example.konnect_backend.domain.ai.domain.entity.log.AnalysisRequestLog;
 import com.example.konnect_backend.domain.ai.domain.vo.ExtractedText;
 import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.repository.AnalysisRequestLogRepository;
+import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
+import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
+import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
 import com.example.konnect_backend.domain.ai.service.history.AnalysisHistoryService;
 import com.example.konnect_backend.domain.ai.service.log.AnalysisLogService;
-import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.domain.user.entity.Device;
 import com.example.konnect_backend.domain.user.entity.User;
@@ -22,8 +19,6 @@ import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +29,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static com.example.konnect_backend.domain.ai.interceptor.AnalysisInterceptor.REQUEST_ID_KEY;
-import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Service
 @RequiredArgsConstructor
