@@ -1,15 +1,14 @@
 package com.example.konnect_backend.domain.ai.service.log;
 
 import com.example.konnect_backend.domain.ai.aop.PromptContext;
+import com.example.konnect_backend.domain.ai.domain.entity.log.LlmCallMetadata;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
-import com.example.konnect_backend.domain.ai.entity.log.LlmCallMetadata;
 import com.example.konnect_backend.domain.ai.repository.LlmCallMetadataRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +27,6 @@ public class GeminiLogService {
     private final LlmCallMetadataRepository metadataRepository;
     private final ObjectMapper objectMapper;
 
-    @Async("loggingExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveLog(UUID requestId, @Nullable GeminiCallResult result, PromptContext context,
                         int latency) throws JsonProcessingException {
@@ -56,6 +54,7 @@ public class GeminiLogService {
         // 프롬프트 템플릿 정보 및 입력 변수와 모델 응답 로깅
         log.info("Gemini API 호출 완료",
             kv("metadata id", saved.getId()),
+            kv("request id", requestId),
             kv("model response", result == null ? null : result.response()),
             kv("module name", moduleName),
             kv("prompt version", promptVersion),

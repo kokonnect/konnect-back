@@ -1,11 +1,14 @@
 package com.example.konnect_backend.domain.ai.controller;
 
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
+import com.example.konnect_backend.domain.ai.domain.vo.TextExtractionResult;
+import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.dto.request.CreatePromptRequest;
 import com.example.konnect_backend.domain.ai.dto.request.RunPromptRequest;
-import com.example.konnect_backend.domain.ai.dto.response.*;
-import com.example.konnect_backend.domain.ai.model.vo.TextExtractionResult;
-import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
+import com.example.konnect_backend.domain.ai.dto.response.ModelListResponse;
+import com.example.konnect_backend.domain.ai.dto.response.PromptResponse;
+import com.example.konnect_backend.domain.ai.dto.response.PromptSummaryListResponse;
+import com.example.konnect_backend.domain.ai.dto.response.RunResultResponse;
 import com.example.konnect_backend.domain.ai.service.prompt.management.PromptManagementService;
 import com.example.konnect_backend.domain.ai.service.textextractor.TextExtractorFacade;
 import com.example.konnect_backend.domain.ai.type.FileType;
@@ -13,6 +16,7 @@ import com.example.konnect_backend.domain.ai.type.PromptStatus;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,12 +27,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/ai")
 @RequiredArgsConstructor
+@Hidden
 @Tag(name = "프롬프트 관리")
 public class PromptManagementController {
 
@@ -96,12 +100,11 @@ public class PromptManagementController {
         // 원래는 서비스에 있어야 하나 바뀌지 않고 재사용할 일 없는 로직이므로 편의 상 컨트롤러에 작성
         PipelineContext context = PipelineContext.builder().targetLanguage(TargetLanguage.KOREAN)
             .requestId(UUID.randomUUID()) // id는 상관없으나 혹시 모를 null 문제 방지
-            .filename(file.originalName())
-            .fileType(file.fileType())
+            .file(file)
             .completedStage(PipelineContext.PipelineStage.NONE)
             .processingLogs(new ArrayList<>()).build();
 
-        TextExtractionResult result = textExtractorFacade.extract(file, context);
+        TextExtractionResult result = textExtractorFacade.extract(context);
 
         return ResponseEntity.ok(result.getText());
     }

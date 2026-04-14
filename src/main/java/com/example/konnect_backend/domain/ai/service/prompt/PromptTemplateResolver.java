@@ -1,6 +1,6 @@
 package com.example.konnect_backend.domain.ai.service.prompt;
 
-import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import com.example.konnect_backend.global.exception.GeneralException;
 import org.springframework.stereotype.Component;

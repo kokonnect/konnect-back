@@ -1,9 +1,9 @@
 package com.example.konnect_backend.domain.ai.controller;
 
-import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
+import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.dto.response.AnalysisHistoryResponse;
-import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.service.AnalysisHistoryService;
+import com.example.konnect_backend.domain.ai.dto.response.DocumentAnalysisResponse;
+import com.example.konnect_backend.domain.ai.service.history.AnalysisHistoryService;
 import com.example.konnect_backend.domain.ai.service.pipeline.DocumentAnalysisPipeline;
 import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.global.ApiResponse;

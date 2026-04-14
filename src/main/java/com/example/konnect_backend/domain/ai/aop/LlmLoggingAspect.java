@@ -1,10 +1,10 @@
 package com.example.konnect_backend.domain.ai.aop;
 
+import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
-import com.example.konnect_backend.domain.ai.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.service.log.GeminiLogService;
-import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
-import com.example.konnect_backend.domain.ai.service.pipeline.module.PromptModule;
+import com.example.konnect_backend.domain.ai.service.module.PromptModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -28,7 +28,7 @@ public class LlmLoggingAspect {
     /**
      * GeminiService 반환 시 로깅에 사용할 수 있도록 ThreadLocal 에 모듈명과 프롬프트 버전을 저장한다.
      */
-    @Around(value = "execution(* com.example.konnect_backend.domain.ai.service.pipeline.module.PromptModule.process(..)) && args(promptTemplate, context)",
+    @Around(value = "execution(* com.example.konnect_backend.domain.ai.service.module.PromptModule.process(..)) && args(promptTemplate, context)",
             argNames = "joinPoint,promptTemplate,context")
     public Object saveModuleNameAndPromptVersionInContext(ProceedingJoinPoint joinPoint,
                                                           PromptTemplate promptTemplate,
@@ -63,7 +63,7 @@ public class LlmLoggingAspect {
         try {
             GeminiCallResult callResult = (GeminiCallResult) joinPoint.proceed();
             long elapsed = System.currentTimeMillis() - start;
-            // 비동기 호출, 트랜잭션 분리
+            // 트랜잭션 분리
             logService.saveLog(requestId, callResult, promptContext, (int) elapsed);
             return callResult;
         } catch (Exception e) {

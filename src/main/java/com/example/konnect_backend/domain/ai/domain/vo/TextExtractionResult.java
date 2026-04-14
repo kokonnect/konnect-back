@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.model.vo;
+package com.example.konnect_backend.domain.ai.domain.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
