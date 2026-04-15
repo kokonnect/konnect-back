@@ -1,11 +1,9 @@
-package com.example.konnect_backend.domain.ai.service.pipeline;
+package com.example.konnect_backend.domain.ai.domain.vo;
 
 import com.example.konnect_backend.domain.ai.dto.internal.ClassificationResult;
 import com.example.konnect_backend.domain.ai.dto.internal.ExtractionResult;
 import com.example.konnect_backend.domain.ai.dto.response.DifficultExpressionDto;
-import com.example.konnect_backend.domain.ai.model.vo.TokenUsage;
 import com.example.konnect_backend.domain.ai.type.DocumentType;
-import com.example.konnect_backend.domain.ai.type.FileType;
 import com.example.konnect_backend.domain.ai.type.TargetLanguage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,9 +11,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Data
 @Builder
@@ -44,8 +43,7 @@ public class PipelineContext {
     private String summary;
 
     // 사용자 요청값
-    private String filename;
-    private FileType fileType;
+    private UploadFile file;
     private TargetLanguage targetLanguage;
 
     // 요청의 토큰 사용량, 비동기 호출로 분리를 염두하여 AtomicInteger 사용
@@ -61,7 +59,7 @@ public class PipelineContext {
     @Builder.Default
     private List<String> processingLogs = new ArrayList<>();
 
-    public void addLog(String log) {
+    public synchronized void addLog(String log) {
         if (processingLogs == null) {
             processingLogs = new ArrayList<>();
         }

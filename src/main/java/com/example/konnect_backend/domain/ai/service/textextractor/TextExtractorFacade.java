@@ -1,10 +1,10 @@
 package com.example.konnect_backend.domain.ai.service.textextractor;
 
+import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
+import com.example.konnect_backend.domain.ai.domain.vo.TextExtractionResult;
+import com.example.konnect_backend.domain.ai.domain.vo.UploadFile;
 import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.exception.TextExtractionException;
-import com.example.konnect_backend.domain.ai.model.vo.TextExtractionResult;
-import com.example.konnect_backend.domain.ai.model.vo.UploadFile;
-import com.example.konnect_backend.domain.ai.service.pipeline.PipelineContext;
 import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,10 @@ public class TextExtractorFacade {
 
     private final List<TextExtractor> extractors;
 
-    public TextExtractionResult extract(UploadFile file, PipelineContext context) {
+    public TextExtractionResult extract(PipelineContext context) {
+        UploadFile file = context.getFile();
+        if (file == null) throw new IllegalStateException("Context의 file이 null일 수 없습니다.");
+
         for (TextExtractor extractor : extractors) {
             if (extractor.supports(file.fileType())) {
                 log.debug("텍스트 추출 시작: {}", file.fileType());

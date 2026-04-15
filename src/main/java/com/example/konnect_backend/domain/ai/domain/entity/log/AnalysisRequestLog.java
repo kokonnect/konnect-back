@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.entity.log;
+package com.example.konnect_backend.domain.ai.domain.entity.log;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
