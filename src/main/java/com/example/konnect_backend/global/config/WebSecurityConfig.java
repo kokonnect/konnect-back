@@ -46,7 +46,7 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         // Swagger UI 관련 모든 경로 허용
                         .requestMatchers(
                                 "/swagger-ui.html",
