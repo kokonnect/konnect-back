@@ -73,10 +73,12 @@ public class PromptManagementService {
         }
         PromptTemplate previousActive = activePrompts.get(0);
 
-        toActivate.setStatus(PromptStatus.ACTIVE);
         previousActive.setStatus(PromptStatus.DEPRECATED);
+        promptRepository.flush();
+        toActivate.setStatus(PromptStatus.ACTIVE);
     }
 
+    @Transactional
     public RunResultResponse run(RunPromptRequest request) {
         String prompt = resolver.resolve(request.promptTemplate(), request.vars());
 

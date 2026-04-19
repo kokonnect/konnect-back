@@ -57,8 +57,8 @@ public class LlmLoggingAspect {
     public Object logGeminiCall(ProceedingJoinPoint joinPoint) throws Throwable {
         long start = System.currentTimeMillis();
         PromptContext promptContext = PromptContextHolder.get();
-        String requestIdString = MDC.get(REQUEST_ID_KEY); // 모듈 자체를 비동기로 호출 시 주입 또는 전파 필요
-        UUID requestId = UUID.fromString(requestIdString);
+        String requestIdString = MDC.get(REQUEST_ID_KEY);
+        UUID requestId = requestIdString == null ? UUID.randomUUID() : UUID.fromString(requestIdString);
 
         try {
             GeminiCallResult callResult = (GeminiCallResult) joinPoint.proceed();
