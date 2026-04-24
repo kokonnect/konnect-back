@@ -18,7 +18,7 @@ public class DiscordWebhookService {
     private final String DISCORD_WEBHOOK_URL;
 
     public DiscordWebhookService(RestTemplate restTemplate,
-                                 @Value("${discord.webhook-url:#{null}}") String discordWebhookUrl) {
+                                 @Value("${discord.webhook-url:}") String discordWebhookUrl) {
         this.restTemplate = restTemplate;
         this.DISCORD_WEBHOOK_URL = discordWebhookUrl;
     }
