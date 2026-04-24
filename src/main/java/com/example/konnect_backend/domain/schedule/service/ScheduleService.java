@@ -476,6 +476,7 @@ public class ScheduleService {
 
         ScheduleRepeat repeat = ScheduleRepeat.builder()
                 .schedule(schedule)
+                .user(schedule.getUser())
                 .repeatType(repeatRequest.getRepeatType())
                 .repeatEndType(repeatRequest.getRepeatEndType())
                 .repeatEndDate(repeatRequest.getRepeatEndDate())
