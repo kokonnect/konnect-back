@@ -58,7 +58,14 @@ public class LlmLoggingAspect {
         long start = System.currentTimeMillis();
         PromptContext promptContext = PromptContextHolder.get();
         String requestIdString = MDC.get(REQUEST_ID_KEY);
-        UUID requestId = requestIdString == null ? UUID.randomUUID() : UUID.fromString(requestIdString);
+        UUID requestId;
+        try {
+            requestId = (requestIdString == null || requestIdString.isBlank())
+                ? UUID.randomUUID()
+                : UUID.fromString(requestIdString);
+        } catch (IllegalArgumentException e) {
+            requestId = UUID.randomUUID();
+        }
 
         try {
             GeminiCallResult callResult = (GeminiCallResult) joinPoint.proceed();
