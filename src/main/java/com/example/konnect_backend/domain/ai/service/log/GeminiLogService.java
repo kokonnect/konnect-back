@@ -49,11 +49,22 @@ public class GeminiLogService {
                 moduleName, result.finishReason(), logTime);
         }
 
-        LlmCallMetadata saved = metadataRepository.save(metadata);
+        LlmCallMetadata saved = null;
 
-        // 프롬프트 템플릿 정보 및 입력 변수와 모델 응답 로깅
+        try {
+            saved = metadataRepository.saveAndFlush(metadata);
+        } catch (Exception e) {
+            log.error("metadata save 실패",
+                kv("request id", requestId),
+                kv("module name", moduleName),
+                kv("prompt version", promptVersion),
+                kv("error", e.getMessage()),
+                e
+            );
+        }
+
         log.info("Gemini API 호출 완료",
-            kv("metadata id", saved.getId()),
+            kv("metadata id", saved != null ? saved.getId() : null),
             kv("request id", requestId),
             kv("model response", result == null ? null : result.response()),
             kv("module name", moduleName),

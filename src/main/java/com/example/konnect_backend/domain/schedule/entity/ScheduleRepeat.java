@@ -2,6 +2,7 @@ package com.example.konnect_backend.domain.schedule.entity;
 
 import com.example.konnect_backend.domain.schedule.entity.status.RepeatEndType;
 import com.example.konnect_backend.domain.schedule.entity.status.RepeatType;
+import com.example.konnect_backend.domain.user.entity.User;
 import com.example.konnect_backend.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -25,6 +26,10 @@ public class ScheduleRepeat extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

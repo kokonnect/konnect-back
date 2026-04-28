@@ -1,4 +1,4 @@
-package com.example.konnect_backend.domain.ai.controller;
+package com.example.konnect_backend.domain.admin.controller;
 
 import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.domain.vo.TextExtractionResult;
