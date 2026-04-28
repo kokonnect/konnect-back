@@ -46,7 +46,7 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         // Swagger UI 관련 모든 경로 허용
                         .requestMatchers(
                                 "/swagger-ui.html",
@@ -58,12 +58,13 @@ public class WebSecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
                         .requestMatchers("/api/auth/**", "/api/schools/**", "/api/device/**", "/api/ai/**", "/api/usage/**", "/api/message/**", "/api/users/language").permitAll()
-                        .requestMatchers("/api/admin/**").denyAll() // Todo 관리자만 허용 필요
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/ws/**", "/ws/**").permitAll()
                         .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/ai/analyze").permitAll() // 로컬 테스트 편의를 위해 허용
+                        .requestMatchers("/api/ai/analyze").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(o -> o
