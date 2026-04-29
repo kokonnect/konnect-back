@@ -473,10 +473,11 @@ public class ScheduleService {
         if (repeatRequest == null) {
             return;
         }
+        User user = getCurrentUser();
 
         ScheduleRepeat repeat = ScheduleRepeat.builder()
                 .schedule(schedule)
-                .user(schedule.getUser())
+                .user(user)
                 .repeatType(repeatRequest.getRepeatType())
                 .repeatEndType(repeatRequest.getRepeatEndType())
                 .repeatEndDate(repeatRequest.getRepeatEndDate())
