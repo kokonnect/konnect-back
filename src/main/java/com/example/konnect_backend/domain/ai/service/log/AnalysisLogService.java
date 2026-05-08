@@ -26,7 +26,7 @@ public class AnalysisLogService {
 
     private final AnalysisRequestLogRepository requestLogRepository;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Long succeed(PipelineContext context, long processingTimeInMillis, LocalDateTime now,
                         Long userId) {
         logRequestProcessingResult("SUCCESS", context, processingTimeInMillis, now);
@@ -67,9 +67,13 @@ public class AnalysisLogService {
         log.info("   총 토큰 (Total):    {}", String.format("%,d", inputTokens + outputTokens));
         log.info("═══════════════════════════════════════════════════════════════");
 
-        jsonLogger.info("파이프라인 처리 종료", kv("status", status), kv("request id", requestId),
-            kv("processing time in millis", processingTimeInMillis),
-            kv("input tokens", inputTokens), kv("output tokens", outputTokens),
-            kv("total tokens", inputTokens + outputTokens), kv("timestamp", timestamp));
+        jsonLogger.info("파이프라인 처리 종료",
+            kv("status", status),
+            kv("request_id", requestId),
+            kv("latency_ms", processingTimeInMillis),
+            kv("input_tokens", inputTokens),
+            kv("output_tokens", outputTokens),
+            kv("total_tokens", inputTokens + outputTokens),
+            kv("timestamp", timestamp));
     }
 }

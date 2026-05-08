@@ -1,10 +1,11 @@
 package com.example.konnect_backend.domain.ai.service.log;
 
 import com.example.konnect_backend.domain.ai.aop.PromptContext;
+import com.example.konnect_backend.domain.ai.domain.entity.log.LlmCallDetail;
 import com.example.konnect_backend.domain.ai.domain.entity.log.LlmCallMetadata;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
+import com.example.konnect_backend.domain.ai.repository.LlmCallDetailRepository;
 import com.example.konnect_backend.domain.ai.repository.LlmCallMetadataRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
@@ -25,11 +26,12 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 public class GeminiLogService {
 
     private final LlmCallMetadataRepository metadataRepository;
+    private final LlmCallDetailRepository detailRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveLog(UUID requestId, @Nullable GeminiCallResult result, PromptContext context,
-                        int latency) throws JsonProcessingException {
+                        int latency) {
         LocalDateTime logTime = LocalDateTime.now();
 
         // 프롬프트 모듈 외부에서 호출되는 경우에 대한 방어 코드
@@ -37,40 +39,37 @@ public class GeminiLogService {
         int promptVersion = context == null ? 0 : context.promptVersion();
         Map<String, String> vars = context == null ? Map.of() : context.vars();
 
-        // 메타데이터 DB 로깅
         LlmCallMetadata metadata;
         if (result == null) {
-            metadata = LlmCallMetadata.fail(requestId, latency, moduleName, promptVersion,
-                logTime);
+            metadata = LlmCallMetadata.fail(requestId, latency, moduleName, promptVersion, logTime);
         } else {
             metadata = LlmCallMetadata.succeed(requestId, result.model(), (int) result.maxTokens(),
                 result.tokenUsage().inputTokens(), result.tokenUsage().outputTokens(), latency,
-                promptVersion,
-                moduleName, result.finishReason(), logTime);
+                promptVersion, moduleName, result.finishReason(), logTime);
         }
-
-        LlmCallMetadata saved = null;
 
         try {
-            saved = metadataRepository.saveAndFlush(metadata);
+            metadataRepository.save(metadata);
         } catch (Exception e) {
-            log.error("metadata save 실패",
-                kv("request id", requestId),
-                kv("module name", moduleName),
-                kv("prompt version", promptVersion),
-                kv("error", e.getMessage()),
-                e
-            );
+            log.error("llm_call_metadata 저장 실패: requestId={}, module={}, error={}", requestId,
+                moduleName, e.getMessage(), e);
         }
 
-        log.info("Gemini API 호출 완료",
-            kv("metadata id", saved != null ? saved.getId() : null),
-            kv("request id", requestId),
-            kv("model response", result == null ? null : result.response()),
-            kv("module name", moduleName),
-            kv("prompt version", promptVersion),
-            kv("input vars", objectMapper.writeValueAsString(vars)),
-            kv("timestamp", logTime)
-        );
+        try {
+            String inputVarsJson = objectMapper.writeValueAsString(vars);
+            String responseText = result == null ? null : result.response();
+            detailRepository.save(
+                LlmCallDetail.of(requestId, moduleName, inputVarsJson, responseText, logTime));
+        } catch (Exception e) {
+            log.error("llm_call_detail 저장 실패: requestId={}, module={}, error={}", requestId,
+                moduleName, e.getMessage(), e);
+        }
+
+        log.info("Gemini API 호출", kv("request_id", requestId), kv("module", moduleName),
+            kv("prompt_version", promptVersion), kv("status", result == null ? "FAIL" : "SUCCESS"),
+            kv("latency_ms", latency), kv("model", result == null ? null : result.model()),
+            kv("input_tokens", result == null ? null : result.tokenUsage().inputTokens()),
+            kv("output_tokens", result == null ? null : result.tokenUsage().outputTokens()),
+            kv("timestamp", logTime));
     }
 }

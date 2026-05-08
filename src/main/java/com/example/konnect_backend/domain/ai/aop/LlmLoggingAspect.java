@@ -51,7 +51,7 @@ public class LlmLoggingAspect {
 
     /**
      * GeminiService 의 모둔 API 호출은 public 메소드이다. </br>
-     * LlmCallMetadata, LlmCallRawData 를 저장한다.
+     * LlmCallMetadata, LlmCallDetail 을 저장한다.
      */
     @Around(value = "execution(public * com.example.konnect_backend.domain.ai.infra.GeminiService.*(..))")
     public Object logGeminiCall(ProceedingJoinPoint joinPoint) throws Throwable {
