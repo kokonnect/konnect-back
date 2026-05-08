@@ -10,9 +10,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.MDC;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.UUID;
 
 import static com.example.konnect_backend.domain.ai.interceptor.AnalysisInterceptor.REQUEST_ID_KEY;
@@ -50,7 +54,23 @@ public class LlmLoggingAspect {
     }
 
     /**
-     * GeminiService 의 모둔 API 호출은 public 메소드이다. </br>
+     * 파이프라인 외부에서 GeminiService를 호출하는 메서드에 @LlmContext를 붙이면
+     * AOP가 PromptContextHolder를 세팅하고 메서드 종료 후 정리한다.
+     */
+    @Around("@annotation(llmCtx)")
+    public Object setContextFromAnnotation(ProceedingJoinPoint pjp, LlmContext llmCtx)
+            throws Throwable {
+        Map<String, String> vars = evaluateVarsExpression(pjp, llmCtx.varsExpression());
+        PromptContextHolder.set(new PromptContext(llmCtx.moduleName(), llmCtx.promptVersion(), vars));
+        try {
+            return pjp.proceed();
+        } finally {
+            PromptContextHolder.clear();
+        }
+    }
+
+    /**
+     * GeminiService 의 모든 API 호출은 public 메소드이다. </br>
      * LlmCallMetadata, LlmCallDetail 을 저장한다.
      */
     @Around(value = "execution(public * com.example.konnect_backend.domain.ai.infra.GeminiService.*(..))")
@@ -60,9 +80,12 @@ public class LlmLoggingAspect {
         String requestIdString = MDC.get(REQUEST_ID_KEY);
         UUID requestId;
         try {
-            requestId = (requestIdString == null || requestIdString.isBlank())
-                ? UUID.randomUUID()
-                : UUID.fromString(requestIdString);
+            if (requestIdString == null || requestIdString.isBlank()) {
+                log.warn("MDC에 requestId 없음 — 새 UUID 생성. @LlmContext 또는 인터셉터 누락 여부 확인 필요");
+                requestId = UUID.randomUUID();
+            } else {
+                requestId = UUID.fromString(requestIdString);
+            }
         } catch (IllegalArgumentException e) {
             requestId = UUID.randomUUID();
         }
@@ -77,6 +100,27 @@ public class LlmLoggingAspect {
             long elapsed = System.currentTimeMillis() - start;
             logService.saveLog(requestId, null, promptContext, (int) elapsed);
             throw e;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> evaluateVarsExpression(ProceedingJoinPoint pjp, String expression) {
+        try {
+            MethodSignature sig = (MethodSignature) pjp.getSignature();
+            String[] paramNames = sig.getParameterNames();
+            Object[] args = pjp.getArgs();
+
+            StandardEvaluationContext ctx = new StandardEvaluationContext();
+            if (paramNames != null) {
+                for (int i = 0; i < paramNames.length; i++) {
+                    ctx.setVariable(paramNames[i], args[i]);
+                }
+            }
+            Object result = new SpelExpressionParser().parseExpression(expression).getValue(ctx);
+            return result instanceof Map ? (Map<String, String>) result : Map.of();
+        } catch (Exception e) {
+            log.warn("@LlmContext varsExpression 평가 실패: {}", expression, e);
+            return Map.of();
         }
     }
 }

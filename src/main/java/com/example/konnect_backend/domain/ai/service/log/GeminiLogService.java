@@ -34,7 +34,9 @@ public class GeminiLogService {
                         int latency) {
         LocalDateTime logTime = LocalDateTime.now();
 
-        // 프롬프트 모듈 외부에서 호출되는 경우에 대한 방어 코드
+        if (context == null) {
+            log.warn("PromptContextHolder 비어있음 — moduleName=UNKNOWN으로 저장. @LlmContext 누락 여부 확인 필요");
+        }
         String moduleName = context == null ? "UNKNOWN" : context.moduleName();
         int promptVersion = context == null ? 0 : context.promptVersion();
         Map<String, String> vars = context == null ? Map.of() : context.vars();

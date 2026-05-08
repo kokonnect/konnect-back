@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.ai.service.prompt.management;
 
+import com.example.konnect_backend.domain.ai.aop.LlmContext;
 import com.example.konnect_backend.domain.ai.domain.entity.AiModel;
 import com.example.konnect_backend.domain.ai.domain.entity.PromptSlot;
 import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
@@ -78,6 +79,7 @@ public class PromptManagementService {
         toActivate.setStatus(PromptStatus.ACTIVE);
     }
 
+    @LlmContext(moduleName = "ADMIN_PROMPT_TEST", varsExpression = "#request.vars()")
     @Transactional
     public RunResultResponse run(RunPromptRequest request) {
         String prompt = resolver.resolve(request.promptTemplate(), request.vars());

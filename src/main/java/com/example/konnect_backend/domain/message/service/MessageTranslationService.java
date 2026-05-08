@@ -1,5 +1,6 @@
 package com.example.konnect_backend.domain.message.service;
 
+import com.example.konnect_backend.domain.ai.aop.LlmContext;
 import com.example.konnect_backend.domain.ai.infra.GeminiService;
 import com.example.konnect_backend.domain.message.dto.request.MessageComposeRequest;
 import com.example.konnect_backend.domain.message.dto.response.MessageComposeResponse;
@@ -20,10 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.MDC;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -71,13 +70,16 @@ public class MessageTranslationService {
 메시지:
 """;
 
+    @LlmContext(
+        moduleName = "MESSAGE_TRANSLATION",
+        promptVersion = 1,
+        varsExpression = "{'message': #request.message, 'targetLanguage': #request.targetLanguage}"
+    )
     @Transactional
     public MessageComposeResponse generatedMessage(MessageComposeRequest request, String deviceUuid){
         long startTime = System.currentTimeMillis();
 
         try {
-            MDC.put("requestId", UUID.randomUUID().toString());
-
             // 현재 로그인한 사용자 정보 가져오기 (게스트 사용자 포함)
             Long userId = SecurityUtil.getCurrentUserIdOrNull();
             User user = null;
@@ -138,8 +140,6 @@ public class MessageTranslationService {
         } catch (Exception e) {
             log.error("메시지 번역 중 예상치 못한 오류 발생", e);
             throw new GeneralException(ErrorStatus.TRANSLATION_FAILED);
-        } finally {
-            MDC.remove("key");
         }
     }
 
