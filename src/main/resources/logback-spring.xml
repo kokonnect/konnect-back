@@ -1,15 +1,15 @@
 <configuration>
-    <!-- 일반 콘솔 로그 -->
+    <!-- 기존 텍스트 로그 (ai/message 외 도메인용) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- JSON 구조화 로그 (Observability용, 향후 CloudWatch appender로 교체 예정) -->
+    <!-- JSON 콘솔 (ai/message 도메인 공통) -->
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <includeMdc>false</includeMdc>
+            <includeMdc>true</includeMdc>
             <fieldNames>
                 <logger>[ignore]</logger>
                 <version>[ignore]</version>
@@ -19,20 +19,51 @@
         </encoder>
     </appender>
 
+    <!-- prod 전용: CloudWatch appender + ai/message 도메인 → JSON 콘솔 + CloudWatch -->
+    <springProfile name="prod">
+        <appender name="CLOUDWATCH" class="ca.pjer.logback.AwsLogsAppender">
+            <layout class="net.logstash.logback.layout.LogstashLayout">
+                <includeMdc>true</includeMdc>
+            </layout>
+            <logGroupName>/konnect/backend/prod</logGroupName>
+            <logStreamName>structured-logs</logStreamName>
+            <logRegion>ap-northeast-2</logRegion>
+            <maxBatchLogEvents>50</maxBatchLogEvents>
+            <maxFlushTimeMillis>30000</maxFlushTimeMillis>
+            <retentionTimeDays>30</retentionTimeDays>
+        </appender>
+
+        <logger name="com.example.konnect_backend.domain.ai"
+                level="INFO" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="CLOUDWATCH"/>
+        </logger>
+
+        <logger name="com.example.konnect_backend.domain.message"
+                level="INFO" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="CLOUDWATCH"/>
+        </logger>
+    </springProfile>
+
+    <!-- 로컬: ai/message 도메인 → JSON 콘솔만 -->
+    <springProfile name="!prod">
+        <logger name="com.example.konnect_backend.domain.ai"
+                level="INFO" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </logger>
+
+        <logger name="com.example.konnect_backend.domain.message"
+                level="INFO" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- 루트: ai/message 외 도메인 텍스트 로그 -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
     </root>
 
     <!-- Hibernate SQL 로그의 루트 로거로 전파 방지 -->
-    <logger name="org.hibernate.SQL" level="WARN" additivity="false" />
-
-    <!-- LLM 호출 메타데이터 JSON 로거 -->
-    <logger name="com.example.konnect_backend.domain.ai.service.log.GeminiLogService" level="INFO" additivity="false">
-        <appender-ref ref="JSON_CONSOLE"/>
-    </logger>
-
-    <!-- 파이프라인 처리 결과 JSON 로거 -->
-    <logger name="com.example.konnect_backend.domain.ai.service.log.AnalysisLogService.json" level="INFO" additivity="false">
-        <appender-ref ref="JSON_CONSOLE"/>
-    </logger>
+    <logger name="org.hibernate.SQL" level="WARN" additivity="false"/>
 </configuration>

@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 /**
  * Gemini API 통합 서비스
  * <p>
@@ -150,6 +152,10 @@ public class GeminiService {
                 new TokenUsage((int) inputTokens, (int) outputTokens), maxTokens, usedModel,
                 finishReason);
 
+            if (!"STOP".equals(finishReason)) {
+                log.warn("Gemini 비정상 종료: model={}, finishReason={}", model, finishReason);
+            }
+
             // 호출 기록
             rateLimitService.recordUsage(usedModel);
 
@@ -167,9 +173,17 @@ public class GeminiService {
             // 이벤트로 분리하는 것도 가능
             if (change == LlmHealthTracker.StateChange.DOWN) {
                 log.error("LLM 장애 발생 확인 - 시각: {}", OffsetDateTime.now());
+                log.error("LLM 상태 변화",
+                    kv("event", "LLM_HEALTH_CHANGED"),
+                    kv("current_state", "DEGRADED"),
+                    kv("timestamp", OffsetDateTime.now()));
                 discordService.notifyStateChange(true);
             } else if (change == LlmHealthTracker.StateChange.UP) {
                 log.info("LLM 장애 복구 확인 - 시각: {}", OffsetDateTime.now());
+                log.info("LLM 상태 변화",
+                    kv("event", "LLM_HEALTH_CHANGED"),
+                    kv("current_state", "HEALTHY"),
+                    kv("timestamp", OffsetDateTime.now()));
                 discordService.notifyStateChange(false);
             }
         }
@@ -224,7 +238,10 @@ public class GeminiService {
         } catch (DocumentAnalysisException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Gemini 응답 파싱 실패: {}", e.getMessage(), e);
+            log.error("Gemini 응답 파싱 실패: error={}, rawPreview={}",
+                e.getMessage(),
+                responseBody != null ? responseBody.substring(0, Math.min(500, responseBody.length())) : "null",
+                e);
             throw new DocumentAnalysisException(ErrorStatus.AI_SERVICE_UNAVAILABLE);
         }
     }

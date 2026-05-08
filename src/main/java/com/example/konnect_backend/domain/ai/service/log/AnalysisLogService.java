@@ -17,12 +17,9 @@ import java.util.UUID;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
 public class AnalysisLogService {
-
-    private static final Logger jsonLogger = LoggerFactory.getLogger(
-        "com.example.konnect_backend.domain.ai.service.log.AnalysisLogService.json");
 
     private final AnalysisRequestLogRepository requestLogRepository;
 
@@ -49,27 +46,12 @@ public class AnalysisLogService {
 
     private void logRequestProcessingResult(String status, PipelineContext context,
                                             long processingTimeInMillis, LocalDateTime timestamp) {
-        UUID requestId = context.getRequestId();
         int inputTokens = context.getInputTokens().get();
         int outputTokens = context.getOutputTokens().get();
 
-        double processingTimeInSeconds = processingTimeInMillis / 1000.0;
-
-        log.info("═══════════════════════════════════════════════════════════════");
-        log.info("📊 파이프라인 처리 종료: {}", status);
-        log.info("═══════════════════════════════════════════════════════════════");
-        log.info("   요청 ID: {}", requestId);
-        log.info("   처리 시간: {}ms ({}초)", processingTimeInMillis,
-            String.format("%.1f", processingTimeInSeconds));
-        log.info("─────────────────────토큰 사용량 요약──────────────────────────");
-        log.info("   입력 토큰 (Input):  {}", String.format("%,d", inputTokens));
-        log.info("   출력 토큰 (Output): {}", String.format("%,d", outputTokens));
-        log.info("   총 토큰 (Total):    {}", String.format("%,d", inputTokens + outputTokens));
-        log.info("═══════════════════════════════════════════════════════════════");
-
-        jsonLogger.info("파이프라인 처리 종료",
+        log.info("파이프라인 처리 종료",
+            kv("event", "PIPELINE_COMPLETE"),
             kv("status", status),
-            kv("request_id", requestId),
             kv("latency_ms", processingTimeInMillis),
             kv("input_tokens", inputTokens),
             kv("output_tokens", outputTokens),

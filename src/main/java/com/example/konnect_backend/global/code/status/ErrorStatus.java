@@ -85,6 +85,7 @@ public enum ErrorStatus implements BaseErrorCode {
     GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4001", "콘텐츠 생성 중 오류가 발생했습니다."),
     TTS_CONVERSION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI4002", "음성 변환 중 오류가 발생했습니다."),
     AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI4003", "AI 서비스를 사용할 수 없습니다. 일일 호출 제한에 도달했을 수 있습니다."),
+    MAX_TOKEN_EXCEEDED(HttpStatus.BAD_REQUEST, "AI4004", "응답이 최대 출력 토큰을 초과했습니다."),
 
     // Document Analysis Errors
     DOCUMENT_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DOC4001", "문서 분석 중 오류가 발생했습니다."),

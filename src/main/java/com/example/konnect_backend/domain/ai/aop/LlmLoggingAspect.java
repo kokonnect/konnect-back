@@ -3,8 +3,10 @@ package com.example.konnect_backend.domain.ai.aop;
 import com.example.konnect_backend.domain.ai.domain.entity.PromptTemplate;
 import com.example.konnect_backend.domain.ai.domain.vo.PipelineContext;
 import com.example.konnect_backend.domain.ai.dto.internal.GeminiCallResult;
+import com.example.konnect_backend.domain.ai.exception.DocumentAnalysisException;
 import com.example.konnect_backend.domain.ai.service.log.GeminiLogService;
 import com.example.konnect_backend.domain.ai.service.module.PromptModule;
+import com.example.konnect_backend.global.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -26,6 +28,8 @@ import static com.example.konnect_backend.domain.ai.interceptor.AnalysisIntercep
 @Slf4j
 @RequiredArgsConstructor
 public class LlmLoggingAspect {
+
+    private static final ThreadLocal<String> attemptedModelHolder = new ThreadLocal<>();
 
     private final GeminiLogService logService;
 
@@ -70,6 +74,19 @@ public class LlmLoggingAspect {
     }
 
     /**
+     * GeminiRateLimitService의 모델 선택 결과를 ThreadLocal에 캡처한다.
+     * call(String model, ...) 처럼 모델을 직접 지정하는 경우는 logGeminiCall에서 별도 처리.
+     */
+    @Around("execution(* com.example.konnect_backend.domain.ai.infra.GeminiRateLimitService.get*Model(..))")
+    public Object captureAttemptedModel(ProceedingJoinPoint pjp) throws Throwable {
+        Object result = pjp.proceed();
+        if (result instanceof String model) {
+            attemptedModelHolder.set(model);
+        }
+        return result;
+    }
+
+    /**
      * GeminiService 의 모든 API 호출은 public 메소드이다. </br>
      * LlmCallMetadata, LlmCallDetail 을 저장한다.
      */
@@ -90,16 +107,31 @@ public class LlmLoggingAspect {
             requestId = UUID.randomUUID();
         }
 
+        // call(String model, ...) 은 rateLimitService를 거치지 않으므로 인자에서 직접 캡처
+        MethodSignature sig = (MethodSignature) joinPoint.getSignature();
+        if ("call".equals(sig.getMethod().getName())) {
+            Object[] args = joinPoint.getArgs();
+            if (args.length > 0 && args[0] instanceof String modelArg) {
+                attemptedModelHolder.set(modelArg);
+            }
+        }
+
         try {
             GeminiCallResult callResult = (GeminiCallResult) joinPoint.proceed();
             long elapsed = System.currentTimeMillis() - start;
-            // 트랜잭션 분리
             logService.saveLog(requestId, callResult, promptContext, (int) elapsed);
+            if (!"STOP".equals(callResult.finishReason())) {
+                throw new DocumentAnalysisException(ErrorStatus.MAX_TOKEN_EXCEEDED);
+            }
             return callResult;
+        } catch (DocumentAnalysisException e) {
+            throw e;
         } catch (Exception e) {
             long elapsed = System.currentTimeMillis() - start;
-            logService.saveLog(requestId, null, promptContext, (int) elapsed);
+            logService.saveLog(requestId, null, promptContext, (int) elapsed, attemptedModelHolder.get());
             throw e;
+        } finally {
+            attemptedModelHolder.remove();
         }
     }
 

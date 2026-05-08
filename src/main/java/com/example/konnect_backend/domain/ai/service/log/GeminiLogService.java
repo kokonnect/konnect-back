@@ -32,6 +32,12 @@ public class GeminiLogService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveLog(UUID requestId, @Nullable GeminiCallResult result, PromptContext context,
                         int latency) {
+        saveLog(requestId, result, context, latency, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveLog(UUID requestId, @Nullable GeminiCallResult result, PromptContext context,
+                        int latency, @Nullable String failedModel) {
         LocalDateTime logTime = LocalDateTime.now();
 
         if (context == null) {
@@ -43,7 +49,7 @@ public class GeminiLogService {
 
         LlmCallMetadata metadata;
         if (result == null) {
-            metadata = LlmCallMetadata.fail(requestId, latency, moduleName, promptVersion, logTime);
+            metadata = LlmCallMetadata.fail(requestId, failedModel, latency, moduleName, promptVersion, logTime);
         } else {
             metadata = LlmCallMetadata.succeed(requestId, result.model(), (int) result.maxTokens(),
                 result.tokenUsage().inputTokens(), result.tokenUsage().outputTokens(), latency,
@@ -67,9 +73,14 @@ public class GeminiLogService {
                 moduleName, e.getMessage(), e);
         }
 
-        log.info("Gemini API 호출", kv("request_id", requestId), kv("module", moduleName),
-            kv("prompt_version", promptVersion), kv("status", result == null ? "FAIL" : "SUCCESS"),
-            kv("latency_ms", latency), kv("model", result == null ? null : result.model()),
+        log.info("Gemini API 호출",
+            kv("event", "LLM_CALL_COMPLETE"),
+            kv("request_id", requestId),
+            kv("module", moduleName),
+            kv("prompt_version", promptVersion),
+            kv("status", result == null ? "FAIL" : "SUCCESS"),
+            kv("latency_ms", latency),
+            kv("model", result == null ? failedModel : result.model()),
             kv("input_tokens", result == null ? null : result.tokenUsage().inputTokens()),
             kv("output_tokens", result == null ? null : result.tokenUsage().outputTokens()),
             kv("timestamp", logTime));

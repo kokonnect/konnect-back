@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -127,6 +129,11 @@ public class MessageTranslationService {
 
             long endTime = System.currentTimeMillis();
             long processingTime = endTime - startTime;
+
+            log.info("메시지 번역 완료",
+                kv("event", "MESSAGE_TRANSLATION_COMPLETE"),
+                kv("target_language", targetLanguage),
+                kv("latency_ms", processingTime));
 
             return MessageComposeResponse.builder()
                     .originalMessage(request.getMessage())

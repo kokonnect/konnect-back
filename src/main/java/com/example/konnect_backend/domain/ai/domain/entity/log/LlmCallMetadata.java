@@ -84,10 +84,13 @@ public class LlmCallMetadata {
             .finishReason(finishReason).createdAt(logTime).build();
     }
 
-    public static LlmCallMetadata fail(UUID requestId, int latency, String promptModuleName,
-                                       int promptVersion, LocalDateTime logTime) {
-        return LlmCallMetadata.builder().requestUuid(requestId).model(null).inputTokens(null)
-            .outputTokens(null).latencyMs(latency).status("FAIL").promptVersion(promptVersion)
-            .promptModuleName(promptModuleName).finishReason(null).createdAt(logTime).build();
+    public static LlmCallMetadata fail(UUID requestId, String model, int latency,
+                                       String promptModuleName, int promptVersion,
+                                       LocalDateTime logTime) {
+        return LlmCallMetadata.builder().requestUuid(requestId)
+            .model(model != null ? model : "UNKNOWN")
+            .inputTokens(null).outputTokens(null).latencyMs(latency).status("FAIL")
+            .promptVersion(promptVersion).promptModuleName(promptModuleName).finishReason(null)
+            .createdAt(logTime).build();
     }
 }
