@@ -3,10 +3,13 @@ package com.example.konnect_backend.domain.ai.infra;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 @Component
+@Slf4j
 public class LlmHealthTracker {
 
     public enum StateChange {
@@ -33,6 +36,20 @@ public class LlmHealthTracker {
         this.windowSize = windowSize;
         this.recoveryThreshold = recoveryThreshold;
         this.failureThreshold = failureThreshold;
+    }
+    
+    @PostConstruct
+    private void logConfig() {
+        log.info("""
+                LlmHealthTracker initialized
+                - windowSize = {}
+                - recoveryThreshold = {}
+                - failureThreshold = {}
+                """,
+                windowSize,
+                recoveryThreshold,
+                failureThreshold
+        );
     }
 
     // 병목이 될 가능성이 있다. 성능 저하 시 락 방식 개선 필요.
